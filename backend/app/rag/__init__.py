@@ -25,6 +25,13 @@ from app.rag.retriever import (
     extract_query_identifiers,
     apply_keyword_boost,
 )
+from app.rag.knowledge_base import (
+    KnowledgeChunk,
+    RetrievedKnowledgeChunk,
+    KnowledgeBaseManager,
+    chunk_markdown_file,
+    resolve_knowledge_base_dir,
+)
 from app.rag.vector_store import (
     ChromaStoreManager,
     sanitize_collection_name,
@@ -46,5 +53,11 @@ __all__ = [
     "RepositoryRetriever",
     "extract_query_identifiers",
     "apply_keyword_boost",
+    "KnowledgeChunk",
+    "RetrievedKnowledgeChunk",
+    "KnowledgeBaseManager",
+    "chunk_markdown_file",
+    "resolve_knowledge_base_dir",
 ]
+
 

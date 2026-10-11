@@ -53,6 +53,14 @@ class ChromaStoreManager:
             metadata={"project_id": str(project_id), "hnsw:space": "cosine"},
         )
 
+    def get_or_create_knowledge_collection(self, collection_name: Optional[str] = None) -> Collection:
+        """Fetch or initialize the isolated ChromaDB collection for knowledge base documentation."""
+        name = collection_name or getattr(self.settings, "KNOWLEDGE_BASE_COLLECTION", "knowledge_base")
+        return self.client.get_or_create_collection(
+            name=name,
+            metadata={"category": "knowledge_base", "hnsw:space": "cosine"},
+        )
+
     async def index_chunks(
         self,
         project_id: str,

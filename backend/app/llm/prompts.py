@@ -146,10 +146,10 @@ def build_explanation_prompt(
         f"- Detected by Tool: {source_tool}\n\n"
     )
 
-    # Slot for Phase 9 RAG Context
+    # Slot for Phase 9 RAG Context (Knowledge Base & Call Graph)
     if extra_context:
         user_content += (
-            f"RELEVANT ARCHITECTURAL CONTEXT (RAG):\n"
+            f"RELEVANT KNOWLEDGE BASE & ARCHITECTURAL GUIDANCE (RAG):\n"
             f"{extra_context}\n\n"
         )
 

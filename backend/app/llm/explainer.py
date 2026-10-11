@@ -50,9 +50,21 @@ class FindingExplainerService:
         self,
         client: Optional[LLMClient] = None,
         settings: Optional[Settings] = None,
+        kb_manager: Optional[Any] = None,
     ):
         self.settings = settings or get_settings()
         self.client = client or get_llm_client(self.settings)
+        self.kb_manager = kb_manager
+
+    def _get_kb_manager(self):
+        """Lazily initialize KnowledgeBaseManager if not explicitly injected."""
+        if self.kb_manager is None:
+            try:
+                from app.rag.knowledge_base import KnowledgeBaseManager
+                self.kb_manager = KnowledgeBaseManager(self.settings)
+            except Exception as err:
+                logger.debug("KnowledgeBaseManager unavailable or deferred: %s", err)
+        return self.kb_manager
 
     def _extract_source_code_context(
         self,
@@ -127,8 +139,22 @@ class FindingExplainerService:
         if force:
             crud.delete_finding_explanations(db, finding_id)
 
-        # 2. Extract code context and build prompt
+        # 2. Extract code context and retrieve Knowledge Base guidance (Phase 9c)
         code_context = self._extract_source_code_context(finding)
+
+        extra_context: Optional[str] = None
+        kb_mgr = self._get_kb_manager()
+        if kb_mgr is not None:
+            try:
+                extra_context = await kb_mgr.get_guidance_for_finding(
+                    finding_type=finding.type,
+                    finding_title=finding.title,
+                    finding_rule_id=getattr(finding, "rule_id", None),
+                    top_k=2,
+                )
+            except Exception as kb_err:
+                logger.debug("Knowledge base retrieval skipped for finding %d: %s", finding_id, kb_err)
+
         messages = build_explanation_prompt(
             finding_title=finding.title,
             finding_type=finding.type,
@@ -139,7 +165,9 @@ class FindingExplainerService:
             code_snippet=code_context,
             source_tool=finding.source_tool,
             context_size=self.settings.LLM_CONTEXT_SIZE,
+            extra_context=extra_context,
         )
+
 
         schema = FindingExplanation.model_json_schema()
 

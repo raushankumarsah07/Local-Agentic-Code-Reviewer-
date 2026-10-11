@@ -36,6 +36,8 @@ class Settings(BaseSettings):
 
     # ChromaDB Vector Store
     CHROMA_PERSIST_DIR: Path = Field(default=Path("./chroma_db"))
+    KNOWLEDGE_BASE_DIR: Path = Field(default=Path("docs/knowledge"), description="Directory containing knowledge base Markdown files")
+    KNOWLEDGE_BASE_COLLECTION: str = Field(default="knowledge_base", description="ChromaDB collection for knowledge base")
 
     # Local LLM Runtime Settings (llama.cpp / llama-server, OpenAI-compatible)
     LLM_BACKEND: str = Field(default="llama.cpp", description="Local LLM backend runtime (llama.cpp)")
