@@ -1,0 +1,228 @@
+"""
+Database CRUD (Create, Read, Update, Delete) utility functions.
+"""
+
+from typing import List, Optional, Tuple
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from app.db.models import (
+    AnalysisRun,
+    ChatMessage,
+    ChunkMeta,
+    CodeEntity,
+    Finding,
+    GraphEdge,
+    Project,
+    ProjectFile,
+)
+
+
+def create_project(
+    db: Session,
+    project_id: str,
+    name: str,
+    path: str,
+    total_files: int = 0,
+    total_lines: int = 0,
+    total_size_bytes: int = 0,
+) -> Project:
+    """
+    Create and persist a new project record.
+    """
+    project = Project(
+        id=project_id,
+        name=name,
+        path=path,
+        total_files=total_files,
+        total_lines=total_lines,
+        total_size_bytes=total_size_bytes,
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def get_project(db: Session, project_id: str) -> Optional[Project]:
+    """
+    Retrieve a project record by its unique identifier.
+    """
+    return db.query(Project).filter(Project.id == project_id).first()
+
+
+def list_projects(db: Session) -> List[Project]:
+    """
+    Retrieve all projects ordered by newest first.
+    """
+    return db.query(Project).order_by(Project.created_at.desc()).all()
+
+
+def delete_project(db: Session, project_id: str) -> bool:
+    """
+    Delete a project and cascade delete all associated file records.
+    """
+    project = get_project(db, project_id)
+    if not project:
+        return False
+    db.delete(project)
+    db.commit()
+    return True
+
+
+def save_project_files(
+    db: Session,
+    project_id: str,
+    files_data: List[dict],
+) -> List[ProjectFile]:
+    """
+    Bulk insert file records for a project.
+    
+    Args:
+        db: Active SQLAlchemy Session
+        project_id: Target project identifier
+        files_data: List of dicts with keys: path, language, size_bytes, line_count
+    """
+    file_records = [
+        ProjectFile(
+            project_id=project_id,
+            path=item["path"],
+            language=item["language"],
+            size_bytes=item["size_bytes"],
+            line_count=item["line_count"],
+        )
+        for item in files_data
+    ]
+    db.add_all(file_records)
+    db.commit()
+    return file_records
+
+
+def get_project_files(
+    db: Session,
+    project_id: str,
+    language: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+) -> Tuple[List[ProjectFile], int]:
+    """
+    Retrieve files belonging to a project, with optional language filtering and pagination.
+    Returns (files_list, total_count).
+    """
+    query = db.query(ProjectFile).filter(ProjectFile.project_id == project_id)
+    if language:
+        query = query.filter(func.lower(ProjectFile.language) == language.lower())
+
+    total_count = query.count()
+
+    query = query.order_by(ProjectFile.path.asc())
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    return query.all(), total_count
+
+
+def get_project_language_stats(db: Session, project_id: str) -> dict[str, int]:
+    """
+    Aggregate file counts grouped by programming/markup language for a project.
+    """
+    results = (
+        db.query(ProjectFile.language, func.count(ProjectFile.id))
+        .filter(ProjectFile.project_id == project_id)
+        .group_by(ProjectFile.language)
+        .all()
+    )
+    return {lang: count for lang, count in results}
+
+
+def save_code_entities(
+    db: Session,
+    project_id: str,
+    entities_data: List[dict],
+) -> List[CodeEntity]:
+    """
+    Bulk insert extracted AST code entities (classes, functions, methods, imports).
+    """
+    entity_records = [
+        CodeEntity(
+            project_id=project_id,
+            file_path=item["file_path"],
+            entity_type=item["entity_type"],
+            name=item["name"],
+            parent_name=item.get("parent_name"),
+            start_line=item.get("start_line", 0),
+            end_line=item.get("end_line", 0),
+            details=item.get("details"),
+        )
+        for item in entities_data
+    ]
+    db.add_all(entity_records)
+    db.commit()
+    return entity_records
+
+
+def get_project_entities(
+    db: Session,
+    project_id: str,
+    entity_type: Optional[str] = None,
+) -> List[CodeEntity]:
+    """
+    Retrieve all parsed AST entities for a project, optionally filtered by type.
+    """
+    query = db.query(CodeEntity).filter(CodeEntity.project_id == project_id)
+    if entity_type:
+        query = query.filter(CodeEntity.entity_type == entity_type)
+    return query.order_by(CodeEntity.file_path.asc(), CodeEntity.start_line.asc()).all()
+
+
+def get_file_entities(
+    db: Session,
+    project_id: str,
+    file_path: str,
+) -> List[CodeEntity]:
+    """
+    Retrieve all parsed AST entities belonging to a specific file.
+    """
+    return (
+        db.query(CodeEntity)
+        .filter(CodeEntity.project_id == project_id, CodeEntity.file_path == file_path)
+        .order_by(CodeEntity.start_line.asc())
+        .all()
+    )
+
+
+def save_graph_edges(
+    db: Session,
+    project_id: str,
+    edges_data: List[dict],
+) -> List[GraphEdge]:
+    """
+    Bulk persist dependency edges for a project.
+    """
+    edge_records = [
+        GraphEdge(
+            project_id=project_id,
+            source=item["source"],
+            target=item["target"],
+            edge_type=item.get("edge_type", "import"),
+            is_external=item.get("is_external", False),
+            imported_symbols=item.get("imported_symbols"),
+            line_number=item.get("line_number"),
+        )
+        for item in edges_data
+    ]
+    db.add_all(edge_records)
+    db.commit()
+    return edge_records
+
+
+def get_project_edges(
+    db: Session,
+    project_id: str,
+) -> List[GraphEdge]:
+    """
+    Retrieve stored dependency edges for a project.
+    """
+    return db.query(GraphEdge).filter(GraphEdge.project_id == project_id).all()

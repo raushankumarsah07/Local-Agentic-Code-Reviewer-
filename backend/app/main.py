@@ -8,9 +8,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.graph import router as graph_router
 from app.api.health import router as health_router
 from app.api.projects import router as projects_router
 from app.config import get_settings
+from app.db.session import init_db
 
 
 @asynccontextmanager
@@ -22,7 +24,9 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     # Ensure workspace directory exists
     settings.WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"[{settings.APP_NAME}] Initialized workspace at: {settings.WORKSPACE_DIR.resolve()}")
+    # Initialize database tables
+    init_db()
+    print(f"[{settings.APP_NAME}] Initialized database and workspace at: {settings.WORKSPACE_DIR.resolve()}")
     print(f"[{settings.APP_NAME}] CORS origins: {settings.CORS_ORIGINS}")
     yield
     print(f"[{settings.APP_NAME}] Shutting down.")
@@ -55,6 +59,7 @@ app.add_middleware(
 # Register API Routers
 app.include_router(health_router)
 app.include_router(projects_router)
+app.include_router(graph_router)
 
 
 @app.get("/", tags=["General"])

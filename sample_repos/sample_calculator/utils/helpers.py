@@ -3,12 +3,14 @@ Utility helper functions for calculator input validation and formatting.
 """
 
 from typing import Union
+from .formatters import clean_string
 
 
 def validate_number(value: Union[int, float]) -> bool:
     """Validate that input is a numeric value."""
     if not isinstance(value, (int, float)):
-        raise TypeError(f"Expected number, got {type(value).__name__}")
+        clean_msg = clean_string(f"Expected number, got {type(value).__name__}")
+        raise TypeError(clean_msg)
     return True
 
 

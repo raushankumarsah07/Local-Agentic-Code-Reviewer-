@@ -40,10 +40,13 @@ ENV/
 htmlcov/
 
 # Application Workspace & Database
+workspace/
 backend/workspace/
+app_data/
 backend/app_data/
 *.sqlite
 *.db
+chroma_db/
 backend/chroma_db/
 
 # Frontend
