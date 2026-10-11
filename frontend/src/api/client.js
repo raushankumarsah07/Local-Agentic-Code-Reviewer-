@@ -79,4 +79,46 @@ export const api = {
     const query = entityType ? `?entity_type=${encodeURIComponent(entityType)}` : '';
     return request(`/projects/${projectId}/entities${query}`);
   },
+
+  // Static Analysis & Findings (Phase 7)
+  analyzeComplexity: (projectId, thresholds = null) => {
+    const options = {
+      method: 'POST',
+    };
+    if (thresholds) {
+      options.headers = { 'Content-Type': 'application/json' };
+      options.body = JSON.stringify(thresholds);
+    }
+    return request(`/projects/${projectId}/analyze/complexity`, options);
+  },
+
+  analyzeDeadCode: (projectId, entryPoints = null) => {
+    const options = {
+      method: 'POST',
+    };
+    if (entryPoints) {
+      options.headers = { 'Content-Type': 'application/json' };
+      options.body = JSON.stringify({ entry_points: entryPoints });
+    }
+    return request(`/projects/${projectId}/analyze/dead-code`, options);
+  },
+
+  getFindings: (projectId, { type = null, severity = null, file = null, limit = null, offset = null } = {}) => {
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    if (severity) params.append('severity', severity);
+    if (file) params.append('file', file);
+    if (limit) params.append('limit', limit);
+    if (offset) params.append('offset', offset);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return request(`/projects/${projectId}/findings${queryString}`);
+  },
+
+  getFindingsSummary: (projectId) =>
+    request(`/projects/${projectId}/findings/summary`),
+
+  clearFindings: (projectId, type = null) => {
+    const query = type ? `?type=${encodeURIComponent(type)}` : '';
+    return request(`/projects/${projectId}/findings${query}`, { method: 'DELETE' });
+  },
 };

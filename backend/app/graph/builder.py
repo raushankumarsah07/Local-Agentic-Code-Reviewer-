@@ -185,6 +185,10 @@ class DependencyGraphBuilder:
         top_level_package = parts[0]
         return top_level_package, True
 
+    def build(self, include_external: bool = True) -> nx.DiGraph:
+        """Alias for build_graph for concise interface."""
+        return self.build_graph(include_external=include_external)
+
     def build_graph(
         self,
         include_external: bool = True,
