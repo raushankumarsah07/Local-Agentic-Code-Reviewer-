@@ -226,3 +226,114 @@ def get_project_edges(
     Retrieve stored dependency edges for a project.
     """
     return db.query(GraphEdge).filter(GraphEdge.project_id == project_id).all()
+
+
+# --- Findings CRUD ---
+
+def save_findings(
+    db: Session,
+    project_id: str,
+    findings_data: List[dict],
+    replace_type: Optional[str] = None,
+) -> List[Finding]:
+    """
+    Save static analysis findings to the database.
+    If `replace_type` is specified, deletes existing findings of that type for the project first.
+    """
+    if replace_type:
+        delete_project_findings(db, project_id, finding_type=replace_type)
+
+    finding_records = [
+        Finding(
+            project_id=project_id,
+            type=item["type"],
+            severity=item["severity"],
+            title=item["title"],
+            file=item["file"],
+            start_line=item["start_line"],
+            end_line=item["end_line"],
+            evidence_snippet=item.get("evidence_snippet"),
+            source_tool=item.get("source_tool", "analyzer"),
+            explanation=item.get("explanation"),
+        )
+        for item in findings_data
+    ]
+    db.add_all(finding_records)
+    db.commit()
+    return finding_records
+
+
+def get_project_findings(
+    db: Session,
+    project_id: str,
+    finding_type: Optional[str] = None,
+    severity: Optional[str] = None,
+    file_path: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+) -> Tuple[List[Finding], int]:
+    """
+    Retrieve findings for a project with optional filtering by type, severity, or file.
+    Returns (findings_list, total_count).
+    """
+    query = db.query(Finding).filter(Finding.project_id == project_id)
+
+    if finding_type:
+        query = query.filter(Finding.type == finding_type)
+    if severity:
+        query = query.filter(func.lower(Finding.severity) == severity.lower())
+    if file_path:
+        query = query.filter(Finding.file == file_path)
+
+    total_count = query.count()
+    query = query.order_by(Finding.id.asc())
+
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    return query.all(), total_count
+
+
+def delete_project_findings(
+    db: Session,
+    project_id: str,
+    finding_type: Optional[str] = None,
+) -> int:
+    """
+    Delete findings for a project, optionally filtered by finding type.
+    Returns the number of deleted records.
+    """
+    query = db.query(Finding).filter(Finding.project_id == project_id)
+    if finding_type:
+        query = query.filter(Finding.type == finding_type)
+    count = query.delete(synchronize_session=False)
+    db.commit()
+    return count
+
+
+def get_findings_summary(db: Session, project_id: str) -> dict:
+    """
+    Aggregate counts of findings by severity and type for a project.
+    """
+    severity_counts = (
+        db.query(Finding.severity, func.count(Finding.id))
+        .filter(Finding.project_id == project_id)
+        .group_by(Finding.severity)
+        .all()
+    )
+    type_counts = (
+        db.query(Finding.type, func.count(Finding.id))
+        .filter(Finding.project_id == project_id)
+        .group_by(Finding.type)
+        .all()
+    )
+    total_count = db.query(Finding).filter(Finding.project_id == project_id).count()
+
+    return {
+        "total": total_count,
+        "by_severity": {sev: count for sev, count in severity_counts},
+        "by_type": {t: count for t, count in type_counts},
+    }
+
