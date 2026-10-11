@@ -2,6 +2,7 @@
 Database CRUD (Create, Read, Update, Delete) utility functions.
 """
 
+from datetime import datetime
 from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -15,6 +16,7 @@ from app.db.models import (
     FindingExplanation,
     GraphEdge,
     Project,
+    ProjectDoc,
     ProjectFile,
 )
 
@@ -202,6 +204,7 @@ def save_graph_edges(
     """
     Bulk persist dependency edges for a project.
     """
+    import json
     edge_records = [
         GraphEdge(
             project_id=project_id,
@@ -209,7 +212,11 @@ def save_graph_edges(
             target=item["target"],
             edge_type=item.get("edge_type", "import"),
             is_external=item.get("is_external", False),
-            imported_symbols=item.get("imported_symbols"),
+            imported_symbols=(
+                json.dumps(item["imported_symbols"])
+                if isinstance(item.get("imported_symbols"), (list, dict))
+                else item.get("imported_symbols")
+            ),
             line_number=item.get("line_number"),
         )
         for item in edges_data
@@ -369,8 +376,8 @@ def save_finding_explanation(
     db: Session,
     finding_id: int,
     model_name: str,
-    prompt_version: str,
-    explanation_json: str,
+    prompt_version: str = "v1.0",
+    explanation_json: str = "{}",
     latency_ms: int = 0,
     tokens: int = 0,
     status: str = "success",
@@ -417,4 +424,100 @@ def delete_finding_explanations(db: Session, finding_id: int) -> int:
     )
     db.commit()
     return count
+
+
+# --- AnalysisRun Tracking ---
+
+def create_analysis_run(
+    db: Session,
+    project_id: str,
+    status: str = "running",
+    step: str = "initialized",
+    progress_percent: int = 0,
+) -> AnalysisRun:
+    """Create a new pipeline execution run record."""
+    run = AnalysisRun(
+        project_id=project_id,
+        status=status,
+        step=step,
+        progress_percent=progress_percent,
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def get_latest_analysis_run(db: Session, project_id: str) -> Optional[AnalysisRun]:
+    """Retrieve the most recent analysis run for a project."""
+    return (
+        db.query(AnalysisRun)
+        .filter(AnalysisRun.project_id == project_id)
+        .order_by(AnalysisRun.started_at.desc())
+        .first()
+    )
+
+
+def update_analysis_run(
+    db: Session,
+    run_id: int,
+    status: Optional[str] = None,
+    step: Optional[str] = None,
+    progress_percent: Optional[int] = None,
+    error_message: Optional[str] = None,
+    completed_at: Optional[datetime] = None,
+) -> Optional[AnalysisRun]:
+    """Update execution status and progress percent for a run."""
+    run = db.query(AnalysisRun).filter(AnalysisRun.id == run_id).first()
+    if not run:
+        return None
+
+    if status is not None:
+        run.status = status
+    if step is not None:
+        run.step = step
+    if progress_percent is not None:
+        run.progress_percent = progress_percent
+    if error_message is not None:
+        run.error_message = error_message
+    if completed_at is not None:
+        run.completed_at = completed_at
+
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+# --- Project Documentation ---
+
+def save_project_doc(
+    db: Session,
+    project_id: str,
+    overview_md: str,
+    summary_data: Optional[str] = None,
+) -> ProjectDoc:
+    """Save or update generated project architectural documentation."""
+    existing = db.query(ProjectDoc).filter(ProjectDoc.project_id == project_id).first()
+    if existing:
+        existing.overview_md = overview_md
+        if summary_data is not None:
+            existing.summary_data = summary_data
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    doc = ProjectDoc(
+        project_id=project_id,
+        overview_md=overview_md,
+        summary_data=summary_data,
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
+def get_project_doc(db: Session, project_id: str) -> Optional[ProjectDoc]:
+    """Retrieve generated architectural documentation for a project."""
+    return db.query(ProjectDoc).filter(ProjectDoc.project_id == project_id).first()
 

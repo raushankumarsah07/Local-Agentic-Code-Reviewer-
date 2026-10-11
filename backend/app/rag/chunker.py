@@ -421,3 +421,21 @@ def chunk_file(
             project_id=project_id,
             language=file_path.suffix.lstrip(".").lower() or "text",
         )
+
+
+def chunk_repository(
+    repo_root: Path,
+    project_id: str = "default",
+    size_cap_chars: int = 1500,
+) -> List[CodeChunk]:
+    """Helper to chunk all valid code and documentation files across a repository."""
+    all_chunks: List[CodeChunk] = []
+    for file_path in repo_root.rglob("*"):
+        if file_path.is_file():
+            parts = file_path.parts
+            if any(p.startswith(".") or p in ("__pycache__", "node_modules", "venv", ".venv") for p in parts):
+                continue
+            if file_path.suffix.lower() in (".py", ".md", ".txt", ".json", ".yaml", ".yml"):
+                chunks = chunk_file(file_path, repo_root, project_id=project_id, size_cap_chars=size_cap_chars)
+                all_chunks.extend(chunks)
+    return all_chunks

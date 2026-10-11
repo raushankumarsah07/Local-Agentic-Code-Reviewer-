@@ -10,6 +10,7 @@ from app.rag.chunker import (
     CodeChunk,
     ASTChunker,
     chunk_file,
+    chunk_repository,
 )
 from app.rag.embedder import (
     BaseEmbedder,

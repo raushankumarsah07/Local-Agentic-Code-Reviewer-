@@ -74,6 +74,11 @@ class Project(Base):
         back_populates="project",
         cascade="all, delete-orphan",
     )
+    docs = relationship(
+        "ProjectDoc",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Project(id='{self.id}', name='{self.name}', files={self.total_files})>"
@@ -297,3 +302,26 @@ class AnalysisRun(Base):
 
     def __repr__(self) -> str:
         return f"<AnalysisRun(id={self.id}, status='{self.status}', progress={self.progress_percent}%)>"
+
+
+class ProjectDoc(Base):
+    """
+    Generated architectural documentation for a project.
+    """
+    __tablename__ = "project_docs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    project_id = Column(
+        String(64),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    overview_md = Column(Text, nullable=False)
+    summary_data = Column(Text, nullable=True)  # JSON-encoded file/module summaries
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    project = relationship("Project", back_populates="docs")
+
+    def __repr__(self) -> str:
+        return f"<ProjectDoc(id={self.id}, project_id='{self.project_id}')>"

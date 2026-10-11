@@ -15,6 +15,8 @@ import {
   Network,
   ShieldAlert,
   MessageSquare,
+  BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../api/client';
 import ArchitectureGraph from './ArchitectureGraph';
@@ -22,6 +24,7 @@ import NodeDetailPanel from './NodeDetailPanel';
 import SourceViewerModal from './SourceViewerModal';
 import FindingsDashboard from './FindingsDashboard';
 import ChatRepository from './ChatRepository';
+import DocumentationViewer from './DocumentationViewer';
 
 
 export default function ProjectDashboard({ projectId, onBack }) {
@@ -52,6 +55,58 @@ export default function ProjectDashboard({ projectId, onBack }) {
   // AST Parsing State
   const [parsing, setParsing] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+
+  // Phase 10: Agent Analysis Workflow State
+  const [analysisStatus, setAnalysisStatus] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showAnalysisSuccess, setShowAnalysisSuccess] = useState(false);
+
+  // Poll analysis status
+  useEffect(() => {
+    let intervalId = null;
+    if (isAnalyzing && activeProjectId) {
+      intervalId = setInterval(async () => {
+        try {
+          const status = await api.getProjectAnalysisStatus(activeProjectId);
+          setAnalysisStatus(status);
+          if (status.status === 'completed') {
+            setIsAnalyzing(false);
+            setShowAnalysisSuccess(true);
+            setTimeout(() => setShowAnalysisSuccess(false), 5000);
+            loadProjectAndGraph();
+            setToastMessage('Agent analysis completed! Graph, findings, vector index, and docs generated.');
+          } else if (status.status === 'failed') {
+            setIsAnalyzing(false);
+            setError(status.error_message || 'Agent analysis failed.');
+          }
+        } catch (err) {
+          console.warn('Analysis status polling error:', err);
+        }
+      }, 1500);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isAnalyzing, activeProjectId]);
+
+  const handleTriggerAnalysis = async () => {
+    if (!activeProjectId) return;
+    try {
+      setIsAnalyzing(true);
+      setError(null);
+      setAnalysisStatus({
+        status: 'running',
+        step: 'Initializing agent workflow',
+        progress_percent: 5,
+        current_activity: 'Starting LangGraph agent analysis...',
+      });
+      const res = await api.triggerProjectAnalysis(activeProjectId);
+      setToastMessage(res.message || 'Agent analysis started in background.');
+    } catch (err) {
+      setIsAnalyzing(false);
+      setError(`Failed to trigger analysis: ${err.message}`);
+    }
+  };
 
   const loadProjectAndGraph = async () => {
     if (!activeProjectId) return;
@@ -193,6 +248,38 @@ export default function ProjectDashboard({ projectId, onBack }) {
               RAG
             </span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('docs')}
+            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+              activeTab === 'docs'
+                ? 'bg-slate-800 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <BookOpen className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Repository Docs</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+              Phase 10
+            </span>
+          </button>
+        </div>
+
+        {/* Global Agent Analysis Trigger Button */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleTriggerAnalysis}
+            disabled={isAnalyzing}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-xs font-semibold shadow-md shadow-indigo-500/20 transition disabled:opacity-50 cursor-pointer"
+            title="Execute complete LangGraph agent workflow automatically (graph, findings, index, docs)"
+          >
+            {isAnalyzing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            <span>{isAnalyzing ? 'Analyzing...' : 'Analyze'}</span>
+          </button>
         </div>
 
 
@@ -268,7 +355,59 @@ export default function ProjectDashboard({ projectId, onBack }) {
         )}
       </header>
 
-      {/* Main Body Area: Graph View or Findings View */}
+      {/* Phase 10: Live Agent Workflow Progress Banner */}
+      {(isAnalyzing || showAnalysisSuccess) && analysisStatus && (
+        <div className="bg-slate-900/95 border-b border-indigo-500/30 px-4 py-3 backdrop-blur-md z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl animate-fadeIn">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shrink-0">
+              {showAnalysisSuccess ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              ) : (
+                <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-white">
+                  {showAnalysisSuccess ? 'Analysis Complete!' : analysisStatus.step || 'Running Agent Workflow'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  {analysisStatus.progress_percent || 0}%
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate max-w-lg">
+                {showAnalysisSuccess
+                  ? 'All artifacts generated: architecture graph, findings, vector index, and docs.'
+                  : analysisStatus.current_activity || 'Processing repository AST and graph...'}
+              </p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full sm:w-64 shrink-0 flex items-center gap-3">
+            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700/50">
+              <div
+                className={`h-full transition-all duration-500 rounded-full ${
+                  showAnalysisSuccess
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                    : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500'
+                }`}
+                style={{ width: `${Math.max(5, analysisStatus.progress_percent || 0)}%` }}
+              />
+            </div>
+            {showAnalysisSuccess && (
+              <button
+                onClick={() => setActiveTab('docs')}
+                className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 whitespace-nowrap cursor-pointer"
+              >
+                View Docs →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Body Area: Graph View, Findings View, Chat View, or Docs View */}
       {activeTab === 'graph' ? (
         <div className="flex-1 flex overflow-hidden relative">
           {loading ? (
@@ -338,12 +477,23 @@ export default function ProjectDashboard({ projectId, onBack }) {
           onViewSource={handleOpenSourceViewer}
           onSwitchToGraph={() => setActiveTab('graph')}
         />
-      ) : (
+      ) : activeTab === 'chat' ? (
         /* Repository Chat Q&A View (Phase 9d) */
         <ChatRepository
           projectId={activeProjectId}
           onOpenSourceViewer={handleOpenSourceViewer}
         />
+      ) : (
+        /* Repository Documentation View (Phase 10) */
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950">
+          <div className="max-w-6xl mx-auto">
+            <DocumentationViewer
+              projectId={activeProjectId}
+              onTriggerAnalysis={handleTriggerAnalysis}
+              isAnalyzing={isAnalyzing}
+            />
+          </div>
+        </div>
       )}
 
 

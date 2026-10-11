@@ -179,5 +179,20 @@ export const api = {
         enable_graph_expansion: enableGraphExpansion,
       }),
     }),
+
+  // Agent Workflow & Documentation (Phase 10)
+  triggerProjectAnalysis: (projectId) =>
+    request(`/projects/${projectId}/analyze`, {
+      method: 'POST',
+    }),
+
+  getProjectAnalysisStatus: (projectId) =>
+    request(`/projects/${projectId}/status`),
+
+  getProjectDocumentation: (projectId) =>
+    request(`/projects/${projectId}/docs`),
+
+  getDocumentationDownloadUrl: (projectId) =>
+    `${API_BASE_URL}/projects/${projectId}/docs/download`,
 };
 

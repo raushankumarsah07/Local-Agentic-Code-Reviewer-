@@ -17,3 +17,4 @@ radon>=6.0.1
 vulture>=2.11
 bandit>=1.7.8
 chromadb>=0.4.24
+langgraph>=0.1.0
