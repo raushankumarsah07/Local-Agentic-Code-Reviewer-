@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from app.analysis.architecture import ArchitectureAnalyzer
 from app.analysis.complexity import ComplexityAnalyzer, ComplexityThresholds
 from app.analysis.dead_code import DeadCodeAnalyzer
 from app.db import crud
@@ -81,6 +82,22 @@ class DeadCodeAnalysisResult(BaseModel):
     entry_points: List[str]
     unreachable_files_count: int
     findings_count: int
+    message: str
+    findings: List[FindingResponse]
+
+
+class ArchitectureAnalysisRequest(BaseModel):
+    """Configuration thresholds for architecture cycle and god-module analysis."""
+    total_degree_threshold: int = Field(default=8, ge=2, description="Total degree (fan-in + fan-out) threshold to flag god modules")
+    betweenness_threshold: float = Field(default=0.20, ge=0.0, le=1.0, description="Betweenness centrality threshold to flag bottlenecks")
+
+
+class ArchitectureAnalysisResult(BaseModel):
+    """Response returned upon completing architecture analysis."""
+    project_id: str
+    cycles_count: int
+    god_modules_count: int
+    total_findings: int
     message: str
     findings: List[FindingResponse]
 
@@ -188,6 +205,60 @@ async def analyze_project_dead_code(
         findings_count=len(saved_records),
         message=f"Dead-code analysis completed: {len(saved_records)} candidate findings identified ({unreachable_count} unreachable files).",
         findings=[FindingResponse.model_validate(f) for f in saved_records],
+    )
+
+
+@router.post(
+    "/{project_id}/analyze/architecture",
+    response_model=ArchitectureAnalysisResult,
+    summary="Run circular dependencies (Tarjan SCC) and god-module coupling analysis",
+    description="Analyzes the dependency graph using Tarjan's SCC algorithm for import cycles, and degree/betweenness centrality for god modules.",
+)
+async def analyze_project_architecture(
+    project_id: str,
+    request: Optional[ArchitectureAnalysisRequest] = None,
+    db: Session = Depends(get_db),
+) -> ArchitectureAnalysisResult:
+    """Execute circular dependency and coupling/god-module analysis."""
+    project = crud.get_project(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project with ID '{project_id}' not found.",
+        )
+
+    project_root = Path(project.path)
+    if not project_root.exists() or not project_root.is_dir():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project directory '{project.path}' does not exist on disk.",
+        )
+
+    cfg = request or ArchitectureAnalysisRequest()
+    analyzer = ArchitectureAnalyzer(
+        total_degree_threshold=cfg.total_degree_threshold,
+        betweenness_threshold=cfg.betweenness_threshold,
+    )
+    raw_findings = analyzer.analyze_project(project_root=project_root, project_id=project_id)
+
+    # Separate cycles and coupling findings for clear replacement in DB
+    cycle_findings = [f for f in raw_findings if f["type"] == "cycle"]
+    coupling_findings = [f for f in raw_findings if f["type"] == "coupling"]
+
+    saved_cycles = crud.save_findings(db, project_id, cycle_findings, replace_type="cycle")
+    saved_coupling = crud.save_findings(db, project_id, coupling_findings, replace_type="coupling")
+    all_saved = saved_cycles + saved_coupling
+
+    return ArchitectureAnalysisResult(
+        project_id=project_id,
+        cycles_count=len(saved_cycles),
+        god_modules_count=len(saved_coupling),
+        total_findings=len(all_saved),
+        message=(
+            f"Architecture analysis completed: {len(saved_cycles)} circular dependencies, "
+            f"{len(saved_coupling)} god modules identified."
+        ),
+        findings=[FindingResponse.model_validate(f) for f in all_saved],
     )
 
 

@@ -103,6 +103,17 @@ export const api = {
     return request(`/projects/${projectId}/analyze/dead-code`, options);
   },
 
+  analyzeArchitecture: (projectId, thresholds = null) => {
+    const options = {
+      method: 'POST',
+    };
+    if (thresholds) {
+      options.headers = { 'Content-Type': 'application/json' };
+      options.body = JSON.stringify(thresholds);
+    }
+    return request(`/projects/${projectId}/analyze/architecture`, options);
+  },
+
   getFindings: (projectId, { type = null, severity = null, file = null, limit = null, offset = null } = {}) => {
     const params = new URLSearchParams();
     if (type) params.append('type', type);
