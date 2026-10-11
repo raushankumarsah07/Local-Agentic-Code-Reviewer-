@@ -32,6 +32,15 @@ from app.rag.knowledge_base import (
     chunk_markdown_file,
     resolve_knowledge_base_dir,
 )
+from app.rag.chat import (
+    ChatMessage,
+    CitationItem,
+    ChatRequest,
+    ChatResponse,
+    RepositoryChatEngine,
+    build_chat_prompt,
+    extract_citations_from_text,
+)
 from app.rag.vector_store import (
     ChromaStoreManager,
     sanitize_collection_name,
@@ -58,6 +67,14 @@ __all__ = [
     "KnowledgeBaseManager",
     "chunk_markdown_file",
     "resolve_knowledge_base_dir",
+    "ChatMessage",
+    "CitationItem",
+    "ChatRequest",
+    "ChatResponse",
+    "RepositoryChatEngine",
+    "build_chat_prompt",
+    "extract_citations_from_text",
 ]
+
 
 

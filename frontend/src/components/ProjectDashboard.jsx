@@ -14,12 +14,15 @@ import {
   X,
   Network,
   ShieldAlert,
+  MessageSquare,
 } from 'lucide-react';
 import { api } from '../api/client';
 import ArchitectureGraph from './ArchitectureGraph';
 import NodeDetailPanel from './NodeDetailPanel';
 import SourceViewerModal from './SourceViewerModal';
 import FindingsDashboard from './FindingsDashboard';
+import ChatRepository from './ChatRepository';
+
 
 export default function ProjectDashboard({ projectId, onBack }) {
   const activeProjectId = typeof projectId === 'object' && projectId !== null
@@ -175,7 +178,23 @@ export default function ProjectDashboard({ projectId, onBack }) {
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+              activeTab === 'chat'
+                ? 'bg-slate-800 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MessageSquare className="h-3.5 w-3.5 text-purple-400" />
+            <span>Chat with Repo</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">
+              RAG
+            </span>
+          </button>
         </div>
+
 
         {/* Right Controls: Graph Mode Filters or Actions */}
         {activeTab === 'graph' ? (
@@ -312,14 +331,21 @@ export default function ProjectDashboard({ projectId, onBack }) {
             </>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'findings' ? (
         /* Findings & Code Review Dashboard View */
         <FindingsDashboard
           projectId={activeProjectId}
           onViewSource={handleOpenSourceViewer}
           onSwitchToGraph={() => setActiveTab('graph')}
         />
+      ) : (
+        /* Repository Chat Q&A View (Phase 9d) */
+        <ChatRepository
+          projectId={activeProjectId}
+          onOpenSourceViewer={handleOpenSourceViewer}
+        />
       )}
+
 
       {/* Source Code Viewer Modal (with line highlighting) */}
       <SourceViewerModal

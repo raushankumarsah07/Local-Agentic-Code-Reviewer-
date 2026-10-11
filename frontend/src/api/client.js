@@ -166,4 +166,18 @@ export const api = {
 
   checkLLMHealth: () =>
     request('/llm/health'),
+
+  // Repository Chat (Phase 9d)
+  chatWithRepository: (projectId, { message, history = [], topK = 5, enableGraphExpansion = true } = {}) =>
+    request(`/projects/${projectId}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        history,
+        top_k: topK,
+        enable_graph_expansion: enableGraphExpansion,
+      }),
+    }),
 };
+

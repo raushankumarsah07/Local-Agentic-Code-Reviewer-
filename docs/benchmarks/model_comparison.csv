@@ -2,3 +2,4 @@ timestamp,model_name,base_url,num_findings,avg_latency_s,tokens_per_second,valid
 2026-10-11 15:14:19,mock-eval-model-7b,mock-server,10,0.05,1861.6,100.0,
 2026-10-11 17:20:19,mock-eval-model-7b,mock-server,10,0.05,1861.3,100.0,
 2026-10-11 17:20:48,mock-eval-model-7b,mock-server,10,0.05,1862.7,100.0,
+2026-10-11 17:22:19,mock-eval-model-7b,mock-server,10,0.05,1861.2,100.0,

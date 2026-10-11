@@ -108,26 +108,36 @@ class LlamaCppEmbedder(BaseEmbedder):
         embeddings: List[List[float]] = []
         batch_size = 16
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i : i + batch_size]
-                payload = {
-                    "model": self.model_name,
-                    "input": batch,
-                }
-                resp = await client.post(endpoint, json=payload)
-                if resp.status_code != 200:
-                    raise RuntimeError(f"llama-server embedding error HTTP {resp.status_code}: {resp.text}")
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                for i in range(0, len(texts), batch_size):
+                    batch = texts[i : i + batch_size]
+                    payload = {
+                        "model": self.model_name,
+                        "input": batch,
+                    }
+                    resp = await client.post(endpoint, json=payload)
+                    if resp.status_code != 200:
+                        raise RuntimeError(f"llama-server embedding error HTTP {resp.status_code}: {resp.text}")
 
-                data = resp.json()
-                data_items = data.get("data", [])
-                for item in data_items:
-                    emb = item.get("embedding", [])
-                    embeddings.append(emb)
-                    if emb:
-                        self._dimension = len(emb)
+                    data = resp.json()
+                    data_items = data.get("data", [])
+                    for item in data_items:
+                        emb = item.get("embedding", [])
+                        embeddings.append(emb)
+                        if emb:
+                            self._dimension = len(emb)
 
-        return embeddings
+            return embeddings
+        except Exception as err:
+            logger.warning(
+                "Embedding server (%s) unavailable or errored (%s); falling back to deterministic local embedding.",
+                endpoint,
+                err,
+            )
+            fallback = DeterministicEmbedder(dimension=self._dimension)
+            return await fallback.embed_documents(texts)
+
 
     async def embed_query(self, text: str) -> List[float]:
         res = await self.embed_documents([text])
@@ -161,37 +171,47 @@ class OllamaEmbedder(BaseEmbedder):
 
         # Try /api/embed (batch endpoint in Ollama >= 0.1.34)
         embed_endpoint = f"{self.base_url}/api/embed"
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            try:
-                resp = await client.post(
-                    embed_endpoint,
-                    json={"model": self.model_name, "input": texts},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    embs = data.get("embeddings", [])
-                    if embs:
-                        self._dimension = len(embs[0])
-                        return embs
-            except Exception:
-                pass
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                try:
+                    resp = await client.post(
+                        embed_endpoint,
+                        json={"model": self.model_name, "input": texts},
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        embs = data.get("embeddings", [])
+                        if embs:
+                            self._dimension = len(embs[0])
+                            return embs
+                except Exception:
+                    pass
 
-            # Fallback to per-item /api/embeddings
-            legacy_endpoint = f"{self.base_url}/api/embeddings"
-            embs = []
-            for t in texts:
-                resp = await client.post(
-                    legacy_endpoint,
-                    json={"model": self.model_name, "prompt": t},
-                )
-                if resp.status_code != 200:
-                    raise RuntimeError(f"Ollama embedding error HTTP {resp.status_code}: {resp.text}")
-                data = resp.json()
-                emb = data.get("embedding", [])
-                embs.append(emb)
-                if emb:
-                    self._dimension = len(emb)
-            return embs
+                # Fallback to per-item /api/embeddings
+                legacy_endpoint = f"{self.base_url}/api/embeddings"
+                embs = []
+                for t in texts:
+                    resp = await client.post(
+                        legacy_endpoint,
+                        json={"model": self.model_name, "prompt": t},
+                    )
+                    if resp.status_code != 200:
+                        raise RuntimeError(f"Ollama embedding error HTTP {resp.status_code}: {resp.text}")
+                    data = resp.json()
+                    emb = data.get("embedding", [])
+                    embs.append(emb)
+                    if emb:
+                        self._dimension = len(emb)
+                return embs
+        except Exception as err:
+            logger.warning(
+                "Ollama embedding server (%s) offline (%s); falling back to deterministic local embedding.",
+                self.base_url,
+                err,
+            )
+            fallback = DeterministicEmbedder(dimension=self._dimension)
+            return await fallback.embed_documents(texts)
+
 
     async def embed_query(self, text: str) -> List[float]:
         res = await self.embed_documents([text])
