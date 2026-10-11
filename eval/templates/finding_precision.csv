@@ -1,0 +1,37 @@
+finding_id,repository,tool,rule_id,category,severity,file_path,line_number,code_snippet,ground_truth_classification,severity_accuracy,reviewer_notes
+FINDING-001,sample_calculator,mccabe,complexity,complexity,Medium,history.py,34,"def complex_scientific_pipeline(a: float, b: float, c: float...",True_Positive,Accurate,Confirmed actionable code issue
+FINDING-002,sample_calculator,graph_reachability,dead_code,dead_code,Medium,history.py,1,# File 'history.py' has no incoming import paths from detect...,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-003,sample_calculator,vulture,dead_code,dead_code,Low,calculator.py,18,def subtract(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-004,sample_calculator,vulture,dead_code,dead_code,Low,calculator.py,28,def divide(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-005,sample_calculator,graph_reachability+vulture,dead_code,dead_code,High,history.py,9,def API_SECRET_KEY(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-006,sample_calculator,graph_reachability+vulture,dead_code,dead_code,High,history.py,10,def DB_PASSWORD(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-007,sample_calculator,graph_reachability+vulture,dead_code,dead_code,High,history.py,13,def execute_shell_export(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-008,sample_calculator,graph_reachability+vulture,dead_code,dead_code,High,history.py,18,def eval_formula_expression(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-009,sample_calculator,graph_reachability+vulture,dead_code,dead_code,High,history.py,23,def load_history_cache(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-010,sample_calculator,graph_reachability+vulture,dead_code,dead_code,High,history.py,28,def query_user_history(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-011,sample_calculator,graph_reachability+vulture,dead_code,dead_code,High,history.py,34,def complex_scientific_pipeline(...):  # Vulture confidence:...,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-012,sample_calculator,graph_reachability+vulture,dead_code,dead_code,High,history.py,65,def unused_dead_helper(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-013,sample_calculator,coupling_analyzer,coupling,architecture,Medium,utils/helpers.py,1,"# Coupling Metrics for 'utils/helpers.py':
+  In-Degree (Affe...",True_Positive,Accurate,Confirmed actionable code issue
+FINDING-014,sample_calculator,ast_security_rules + bandit,security,security,Critical,history.py,20,return eval(expression),True_Positive,Accurate,Confirmed actionable code issue
+FINDING-015,sample_calculator,ast_security_rules + bandit,security,security,Critical,history.py,25,return pickle.loads(blob),True_Positive,Accurate,Confirmed actionable code issue
+FINDING-016,sample_calculator,ast_security_rules + bandit,security,security,Critical,history.py,30,"sql_query = ""SELECT * FROM calculation_history WHERE user_id...",True_Positive,Accurate,Confirmed actionable code issue
+FINDING-017,sample_calculator,ast_security_rules + bandit,security,security,High,history.py,9,"API_SECRET_KEY = ""sk-c********************0192""",True_Positive,Accurate,Confirmed actionable code issue
+FINDING-018,sample_calculator,ast_security_rules + bandit,security,security,High,history.py,10,"DB_PASSWORD = ""secr***************123!""",True_Positive,Accurate,Confirmed actionable code issue
+FINDING-019,sample_calculator,ast_security_rules + bandit,security,security,High,history.py,15,"subprocess.run(f""cat {filename} | gzip > history.gz"", shell=...",True_Positive,Accurate,Confirmed actionable code issue
+FINDING-020,sample_calculator,bandit,security,security,Low,history.py,6,"5 
+6 import pickle
+7 import subprocess",True_Positive,Accurate,Confirmed actionable code issue
+FINDING-021,sample_calculator,bandit,security,security,Low,history.py,7,"6 import pickle
+7 import subprocess
+8",True_Positive,Accurate,Confirmed actionable code issue
+FINDING-022,sample_auth_service,vulture,dead_code,dead_code,Low,config.py,5,def JWT_ALGORITHM(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-023,sample_auth_service,vulture,dead_code,dead_code,Low,config.py,7,def DATABASE_URL(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-024,sample_auth_service,vulture,dead_code,dead_code,Low,config.py,8,def DEBUG_MODE(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-025,sample_auth_service,vulture,dead_code,dead_code,Low,services/auth_service.py,30,def authenticate_user(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-026,sample_auth_service,vulture,dead_code,dead_code,Medium,services/token_service.py,5,def JWT_ALGORITHM(...):  # Vulture confidence: 90%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-027,sample_auth_service,vulture,dead_code,dead_code,Low,services/token_service.py,21,def verify_token(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-028,sample_auth_service,vulture,dead_code,dead_code,Medium,utils/crypto.py,3,def hmac(...):  # Vulture confidence: 90%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-029,sample_auth_service,vulture,dead_code,dead_code,Low,utils/crypto.py,15,def unused_crypto_helper(...):  # Vulture confidence: 60%,True_Positive,Accurate,Confirmed actionable code issue
+FINDING-030,sample_auth_service,coupling_analyzer,coupling,architecture,Medium,services/auth_service.py,1,"# Coupling Metrics for 'services/auth_service.py':
+  In-Degr...",True_Positive,Accurate,Confirmed actionable code issue

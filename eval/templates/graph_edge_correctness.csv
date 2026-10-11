@@ -1,0 +1,51 @@
+edge_id,repository,source_file,target_file,edge_type,imported_symbols,predicted_valid,ground_truth_valid,is_correct,reviewer_notes
+EDGE-001,sample_calculator,calculator.py,config.py,import,PRECISION,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-002,sample_calculator,calculator.py,math,import,math,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-003,sample_calculator,calculator.py,utils/helpers.py,import,"format_result, validate_number",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-004,sample_calculator,config.py,os,import,os,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-005,sample_calculator,history.py,pickle,import,pickle,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-006,sample_calculator,history.py,subprocess,import,subprocess,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-007,sample_calculator,main.py,calculator.py,import,"BasicCalculator, ScientificCalculator",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-008,sample_calculator,main.py,config.py,import,APP_CONFIG,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-009,sample_calculator,main.py,sys,import,sys,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-010,sample_calculator,main.py,utils/helpers.py,import,format_result,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-011,sample_calculator,utils/__init__.py,utils/formatters.py,import,clean_string,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-012,sample_calculator,utils/__init__.py,utils/helpers.py,import,"format_result, validate_number",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-013,sample_calculator,utils/formatters.py,re,import,re,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-014,sample_calculator,utils/helpers.py,typing,import,Union,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-015,sample_calculator,utils/helpers.py,utils/formatters.py,import,clean_string,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-016,sample_auth_service,config.py,os,import,os,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-017,sample_auth_service,main.py,os,import,os,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-018,sample_auth_service,main.py,services/auth_service.py,import,AuthService,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-019,sample_auth_service,main.py,services/token_service.py,import,TokenService,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-020,sample_auth_service,main.py,sys,import,sys,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-021,sample_auth_service,main.py,utils/crypto.py,import,"hash_password, verify_password",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-022,sample_auth_service,services/__init__.py,services/auth_service.py,import,AuthService,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-023,sample_auth_service,services/__init__.py,services/token_service.py,import,TokenService,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-024,sample_auth_service,services/auth_service.py,time,import,time,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-025,sample_auth_service,services/auth_service.py,utils/crypto.py,import,"hash_password, verify_password",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-026,sample_auth_service,services/auth_service.py,utils/validators.py,import,"validate_email, validate_password_strength",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-027,sample_auth_service,services/token_service.py,base64,import,base64,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-028,sample_auth_service,services/token_service.py,config.py,import,"ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM, JWT_SECRET_KEY",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-029,sample_auth_service,services/token_service.py,json,import,json,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-030,sample_auth_service,services/token_service.py,time,import,time,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-031,sample_auth_service,utils/__init__.py,utils/crypto.py,import,"hash_password, verify_password",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-032,sample_auth_service,utils/__init__.py,utils/validators.py,import,"validate_email, validate_password_strength",1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-033,sample_auth_service,utils/crypto.py,base64,import,base64,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-034,sample_auth_service,utils/crypto.py,hashlib,import,hashlib,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-035,sample_auth_service,utils/crypto.py,hmac,import,hmac,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-036,sample_auth_service,utils/validators.py,re,import,re,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-037,sample_data_pipeline,config.py,os,import,os,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-038,sample_data_pipeline,main.py,config.py,import,PIPELINE_BATCH_SIZE,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-039,sample_data_pipeline,main.py,metrics/collector.py,import,PipelineMetrics,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-040,sample_data_pipeline,main.py,os,import,os,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-041,sample_data_pipeline,main.py,pipeline/extractor.py,import,DataExtractor,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-042,sample_data_pipeline,main.py,pipeline/loader.py,import,DataLoader,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-043,sample_data_pipeline,main.py,pipeline/transformer.py,import,DataTransformer,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-044,sample_data_pipeline,metrics/__init__.py,metrics/collector.py,import,PipelineMetrics,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-045,sample_data_pipeline,metrics/collector.py,time,import,time,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-046,sample_data_pipeline,pipeline/__init__.py,pipeline/extractor.py,import,DataExtractor,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-047,sample_data_pipeline,pipeline/__init__.py,pipeline/loader.py,import,DataLoader,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-048,sample_data_pipeline,pipeline/__init__.py,pipeline/transformer.py,import,DataTransformer,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-049,sample_data_pipeline,pipeline/extractor.py,csv,import,csv,1,1,1,Valid direct AST import/dependency confirmed by source inspection
+EDGE-050,sample_data_pipeline,pipeline/extractor.py,os,import,os,1,1,1,Valid direct AST import/dependency confirmed by source inspection

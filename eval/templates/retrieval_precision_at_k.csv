@@ -1,0 +1,21 @@
+query_id,repository,query_text,top_k,retrieved_chunk_ids,retrieved_files,ground_truth_relevant_files,true_positives_retrieved,precision_at_k,mrr_score,reviewer_notes
+QUERY-001,sample_calculator,Where is basic addition and arithmetic implemented?,3,"chunk_1_a, chunk_1_b, chunk_1_c",calculator.py,calculator.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-002,sample_calculator,How does the history module execute formula expressions?,3,"chunk_2_a, chunk_2_b, chunk_2_c",history.py,history.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-003,sample_calculator,Which function loads cached pickles or untrusted bytes?,3,"chunk_3_a, chunk_3_b, chunk_3_c",history.py,history.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-004,sample_calculator,Where is SQL query concatenation performed?,3,"chunk_4_a, chunk_4_b, chunk_4_c",history.py,history.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-005,sample_calculator,Where are results formatted with decimal precision?,3,"chunk_5_a, chunk_5_b, chunk_5_c",utils/formatters.py,utils/formatters.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-006,sample_calculator,Which module defines configuration constants like PRECISION?,3,"chunk_6_a, chunk_6_b, chunk_6_c",config.py,config.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-007,sample_calculator,Where is the CLI entry point with command loop?,3,"chunk_7_a, chunk_7_b, chunk_7_c",main.py,main.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-008,sample_calculator,Where is input validation for numbers implemented?,3,"chunk_8_a, chunk_8_b, chunk_8_c",utils/helpers.py,utils/helpers.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-009,sample_auth_service,How are passwords hashed and salted with PBKDF2?,3,"chunk_9_a, chunk_9_b, chunk_9_c",utils/crypto.py,utils/crypto.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-010,sample_auth_service,Where is email regex syntax validated?,3,"chunk_10_a, chunk_10_b, chunk_10_c",utils/validators.py,utils/validators.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-011,sample_auth_service,How are JWT access tokens generated and signed?,3,"chunk_11_a, chunk_11_b, chunk_11_c",services/token_service.py,services/token_service.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-012,sample_auth_service,Where are expired tokens detected and rejected?,3,"chunk_12_a, chunk_12_b, chunk_12_c",services/token_service.py,services/token_service.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-013,sample_auth_service,Where is user registration and credential check handled?,3,"chunk_13_a, chunk_13_b, chunk_13_c",services/auth_service.py,services/auth_service.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-014,sample_auth_service,Where is JWT_SECRET_KEY configured?,3,"chunk_14_a, chunk_14_b, chunk_14_c",config.py,config.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-015,sample_auth_service,Where is the auth service application initialized?,3,"chunk_15_a, chunk_15_b, chunk_15_c",main.py,main.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-016,sample_data_pipeline,How are raw CSV records extracted from disk?,3,"chunk_16_a, chunk_16_b, chunk_16_c",pipeline/extractor.py,pipeline/extractor.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-017,sample_data_pipeline,Where are null numbers and text fields sanitized?,3,"chunk_17_a, chunk_17_b, chunk_17_c",pipeline/transformer.py,"pipeline/transformer.py, utils/helpers.py",1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-018,sample_data_pipeline,How are transformed records ingested and counted?,3,"chunk_18_a, chunk_18_b, chunk_18_c",pipeline/loader.py,pipeline/loader.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-019,sample_data_pipeline,Where is pipeline execution duration and throughput measured?,3,"chunk_19_a, chunk_19_b, chunk_19_c",metrics/collector.py,metrics/collector.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position
+QUERY-020,sample_data_pipeline,Where is the ETL orchestrator main loop defined?,3,"chunk_20_a, chunk_20_b, chunk_20_c",main.py,main.py,1,0.33,1.0,Relevant source chunk ranked in top-1 position

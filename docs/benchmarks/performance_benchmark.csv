@@ -1,0 +1,4 @@
+repository,files,lines,nodes,edges,density,findings,critical_high,indexed_chunks,scan_ms,parse_ms,build_graph_ms,static_checks_ms,index_code_ms,enrich_findings_ms,review_findings_ms,generate_docs_ms,total_latency_ms,peak_rss_mb
+sample_calculator,9,324,14,15,0.0824,21,14,30,8.7,5.6,5.42,146.07,154.15,417.64,0.26,7.34,745.42,184.05
+sample_auth_service,9,270,16,21,0.0875,10,1,27,5.22,4.68,4.75,131.75,46.6,46.17,0.17,4.11,243.69,189.48
+sample_data_pipeline,10,288,14,17,0.0934,9,0,35,5.71,4.62,4.58,137.62,47.67,0,0.16,5.12,205.7,194.66

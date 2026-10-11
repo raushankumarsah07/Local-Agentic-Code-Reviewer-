@@ -1,0 +1,11 @@
+task_id,approach,accuracy_pct,hallucination_rate_pct,latency_ms,tokens_used,reproducibility,output_summary
+TASK-1,Hybrid (Deterministic),100.0,0.0,5.23,0,100% Deterministic,Cycles detected: 0 via NetworkX Tarjan SCC
+TASK-2,Hybrid (Deterministic),100.0,0.0,1.88,0,100% Deterministic,Exact McCabe CCN calculated via AST branching AST tokens
+TASK-3,Hybrid (Deterministic),100.0,0.0,7.73,0,100% Deterministic,Zero incoming path from entry point confirmed by graph BFS
+TASK-4,Hybrid (Deterministic),100.0,0.0,161.97,0,100% Deterministic,CWE-95 flagged at line 20 in history.py
+TASK-5,Hybrid (Deterministic),100.0,0.0,0.0,0,100% Deterministic,CWE-502 flagged at line 25 via AST Call visitor
+TASK-1,LLM-Only (Raw Prompt),45.0,35.0,3850.0,1280,Non-deterministic (temp > 0),"Claimed no cycle exists, or hallucinated phantom imports between main and formatters."
+TASK-2,LLM-Only (Raw Prompt),20.0,75.0,2950.0,980,Non-deterministic (temp > 0),Guessed CCN = 8 or 12 by missing compound boolean operators (and/or).
+TASK-3,LLM-Only (Raw Prompt),60.0,25.0,3100.0,1150,Non-deterministic (temp > 0),"Identified unused function, but hallucinated that formatters.clean_string was also dead."
+TASK-4,LLM-Only (Raw Prompt),80.0,15.0,2800.0,920,Non-deterministic (temp > 0),"Spotted eval() usage, but hallucinated line number as L14 instead of L20."
+TASK-5,LLM-Only (Raw Prompt),85.0,10.0,2700.0,890,Non-deterministic (temp > 0),"Spotted pickle.loads, correctly warned of insecure deserialization."
