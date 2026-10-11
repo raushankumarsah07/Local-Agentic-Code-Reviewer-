@@ -18,6 +18,13 @@ from app.rag.embedder import (
     DeterministicEmbedder,
     get_embedder,
 )
+from app.rag.retriever import (
+    RetrievedChunk,
+    RetrievalResult,
+    RepositoryRetriever,
+    extract_query_identifiers,
+    apply_keyword_boost,
+)
 from app.rag.vector_store import (
     ChromaStoreManager,
     sanitize_collection_name,
@@ -34,4 +41,10 @@ __all__ = [
     "get_embedder",
     "ChromaStoreManager",
     "sanitize_collection_name",
+    "RetrievedChunk",
+    "RetrievalResult",
+    "RepositoryRetriever",
+    "extract_query_identifiers",
+    "apply_keyword_boost",
 ]
+
