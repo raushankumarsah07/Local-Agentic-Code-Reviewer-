@@ -114,6 +114,17 @@ export const api = {
     return request(`/projects/${projectId}/analyze/architecture`, options);
   },
 
+  analyzeSecurity: (projectId, config = null) => {
+    const options = {
+      method: 'POST',
+    };
+    if (config) {
+      options.headers = { 'Content-Type': 'application/json' };
+      options.body = JSON.stringify(config);
+    }
+    return request(`/projects/${projectId}/analyze/security`, options);
+  },
+
   getFindings: (projectId, { type = null, severity = null, file = null, limit = null, offset = null } = {}) => {
     const params = new URLSearchParams();
     if (type) params.append('type', type);

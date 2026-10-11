@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.analysis.architecture import ArchitectureAnalyzer
 from app.analysis.complexity import ComplexityAnalyzer, ComplexityThresholds
 from app.analysis.dead_code import DeadCodeAnalyzer
+from app.analysis.security import SecurityAnalyzer
 from app.db import crud
 from app.db.session import get_db
 
@@ -98,6 +99,25 @@ class ArchitectureAnalysisResult(BaseModel):
     cycles_count: int
     god_modules_count: int
     total_findings: int
+    message: str
+    findings: List[FindingResponse]
+
+
+class SecurityAnalysisRequest(BaseModel):
+    """Configuration for static vulnerability and security analysis."""
+    enable_bandit: bool = Field(default=True, description="Enable Bandit vulnerability scanner")
+    enable_semgrep: bool = Field(default=True, description="Enable Semgrep scanner if available")
+
+
+class SecurityAnalysisResult(BaseModel):
+    """Response returned upon completing security vulnerability analysis."""
+    project_id: str
+    total_findings: int
+    critical_count: int
+    high_count: int
+    medium_count: int
+    low_count: int
+    info_count: int
     message: str
     findings: List[FindingResponse]
 
@@ -259,6 +279,69 @@ async def analyze_project_architecture(
             f"{len(saved_coupling)} god modules identified."
         ),
         findings=[FindingResponse.model_validate(f) for f in all_saved],
+    )
+
+
+@router.post(
+    "/{project_id}/analyze/security",
+    response_model=SecurityAnalysisResult,
+    summary="Run security vulnerability and secret detection analysis",
+    description=(
+        "Executes static security analysis combining Bandit, Semgrep (if available), "
+        "and custom AST rules for secrets, eval/exec, subprocess shell=True, SQL injection, "
+        "and insecure deserialization. Normalizes severities and labels all findings as potential."
+    ),
+)
+async def analyze_project_security(
+    project_id: str,
+    request: Optional[SecurityAnalysisRequest] = None,
+    db: Session = Depends(get_db),
+) -> SecurityAnalysisResult:
+    """Execute static security analysis and persist security findings."""
+    project = crud.get_project(db, project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project with ID '{project_id}' not found.",
+        )
+
+    project_root = Path(project.path)
+    if not project_root.exists() or not project_root.is_dir():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project directory '{project.path}' does not exist on disk.",
+        )
+
+    cfg = request or SecurityAnalysisRequest()
+    analyzer = SecurityAnalyzer(
+        enable_bandit=cfg.enable_bandit,
+        enable_semgrep=cfg.enable_semgrep,
+    )
+    raw_findings = analyzer.analyze_project(project_root=project_root, project_id=project_id)
+
+    # Persist security findings replacing previous security findings
+    saved_findings = crud.save_findings(db, project_id, raw_findings, replace_type="security")
+
+    # Tally counts by severity
+    critical_count = sum(1 for f in saved_findings if f.severity == "Critical")
+    high_count = sum(1 for f in saved_findings if f.severity == "High")
+    medium_count = sum(1 for f in saved_findings if f.severity == "Medium")
+    low_count = sum(1 for f in saved_findings if f.severity == "Low")
+    info_count = sum(1 for f in saved_findings if f.severity == "Info")
+
+    return SecurityAnalysisResult(
+        project_id=project_id,
+        total_findings=len(saved_findings),
+        critical_count=critical_count,
+        high_count=high_count,
+        medium_count=medium_count,
+        low_count=low_count,
+        info_count=info_count,
+        message=(
+            f"Security analysis completed: {len(saved_findings)} potential security findings identified "
+            f"({critical_count} Critical, {high_count} High, {medium_count} Medium, {low_count} Low)."
+        ),
+        findings=[FindingResponse.model_validate(f) for f in saved_findings],
     )
 
 

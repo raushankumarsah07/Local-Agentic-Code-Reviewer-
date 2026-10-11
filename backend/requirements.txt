@@ -15,4 +15,5 @@ networkx>=3.2.1
 sqlalchemy>=2.0.28
 radon>=6.0.1
 vulture>=2.11
+bandit>=1.7.8
 chromadb>=0.4.24
