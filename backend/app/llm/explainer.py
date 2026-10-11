@@ -17,6 +17,8 @@ from app.db.models import Finding, FindingExplanation as FindingExplanationModel
 from app.llm.client import (
     LLMClient,
     LlamaCppClient,
+    OllamaClient,
+    get_llm_client,
     LLMError,
     LLMInvalidResponseError,
     LLMTimeoutError,
@@ -50,7 +52,7 @@ class FindingExplainerService:
         settings: Optional[Settings] = None,
     ):
         self.settings = settings or get_settings()
-        self.client = client or LlamaCppClient(self.settings)
+        self.client = client or get_llm_client(self.settings)
 
     def _extract_source_code_context(
         self,

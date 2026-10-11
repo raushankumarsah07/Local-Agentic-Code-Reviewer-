@@ -269,3 +269,191 @@ class LlamaCppClient(LLMClient):
             "start_command": self.get_start_command(),
             "embedding_start_command": self.get_embedding_start_command(),
         }
+
+
+# --- Ollama Native HTTP Client Implementation ---
+
+class OllamaClient(LLMClient):
+    """
+    Client for Ollama local HTTP daemon exposing /api/chat with format="json".
+    Supports model download verification and offline execution.
+    """
+
+    def __init__(self, settings: Optional[Settings] = None):
+        self.settings = settings or get_settings()
+        # Fall back to OLLAMA_BASE_URL if configured, else LLM_BASE_URL (default http://127.0.0.1:11434)
+        raw_url = (
+            getattr(self.settings, "OLLAMA_BASE_URL", None)
+            or self.settings.LLM_BASE_URL
+        ).rstrip("/")
+        # If url ends with /v1, strip it for Ollama native endpoints
+        if raw_url.endswith("/v1"):
+            raw_url = raw_url[:-3]
+        self.base_url = raw_url
+        self.model_name = self.settings.LLM_MODEL
+        self.temperature = self.settings.LLM_TEMPERATURE
+        self.timeout = self.settings.LLM_TIMEOUT_SECONDS
+        self.context_size = self.settings.LLM_CONTEXT_SIZE
+
+    def get_start_command(self) -> str:
+        """Return the exact CLI command to start Ollama and ensure the model is pulled."""
+        return f"ollama serve  # and in another terminal: ollama run {self.model_name}"
+
+    def get_embedding_start_command(self) -> str:
+        """Return the command to ensure the embedding model is available."""
+        return f"ollama pull {self.settings.EMBEDDING_MODEL}"
+
+    async def chat(
+        self,
+        messages: List[Dict[str, str]],
+        response_schema: Optional[Dict[str, Any]] = None,
+        schema: Optional[Dict[str, Any]] = None,
+        temperature: Optional[float] = None,
+    ) -> LLMResponse:
+        """
+        Invoke Ollama /api/chat endpoint with JSON format constraint and single retry.
+        Never logs full source code at INFO level.
+        """
+        endpoint = f"{self.base_url}/api/chat"
+        payload: Dict[str, Any] = {
+            "model": self.model_name,
+            "messages": messages,
+            "format": "json",
+            "stream": False,
+            "options": {
+                "temperature": temperature if temperature is not None else self.temperature,
+                "num_ctx": self.context_size,
+            },
+        }
+
+        start_time = time.perf_counter()
+        last_exception: Optional[Exception] = None
+
+        for attempt in range(2):
+            try:
+                async with httpx.AsyncClient(timeout=float(self.timeout)) as client:
+                    resp = await client.post(endpoint, json=payload)
+
+                    if resp.status_code >= 500:
+                        if attempt == 0:
+                            logger.warning(
+                                "Ollama returned HTTP %d, retrying once...",
+                                resp.status_code,
+                            )
+                            continue
+
+                    if resp.status_code != 200:
+                        raise LLMInvalidResponseError(
+                            f"Ollama error HTTP {resp.status_code}: {resp.text[:300]}",
+                            status_code=resp.status_code,
+                        )
+
+                    data = resp.json()
+                    message = data.get("message", {})
+                    content = message.get("content", "")
+
+                    elapsed_sec = time.perf_counter() - start_time
+                    latency_ms = int(elapsed_sec * 1000)
+
+                    prompt_tokens = data.get("prompt_eval_count", 0)
+                    completion_tokens = data.get("eval_count", 0)
+                    total_tokens = prompt_tokens + completion_tokens
+
+                    # Calculate tokens per second using Ollama eval_duration if available
+                    eval_duration_ns = data.get("eval_duration", 0)
+                    tokens_per_second = None
+                    if completion_tokens > 0:
+                        if eval_duration_ns > 0:
+                            tokens_per_second = round(completion_tokens / (eval_duration_ns / 1e9), 2)
+                        elif elapsed_sec > 0:
+                            tokens_per_second = round(completion_tokens / elapsed_sec, 2)
+
+                    logger.info(
+                        "Ollama chat completed: model='%s', latency=%dms, tokens=%d, tps=%s",
+                        self.model_name,
+                        latency_ms,
+                        total_tokens,
+                        tokens_per_second or "N/A",
+                    )
+
+                    return LLMResponse(
+                        content=content,
+                        latency_ms=latency_ms,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=total_tokens,
+                        tokens_per_second=tokens_per_second,
+                        model_name=self.model_name,
+                    )
+
+            except httpx.TimeoutException:
+                logger.error("Ollama generation timed out after %ds", self.timeout)
+                raise LLMTimeoutError(self.timeout)
+            except httpx.ConnectError as err:
+                last_exception = err
+                if attempt == 0:
+                    continue
+                logger.error("Cannot connect to Ollama at %s: %s", self.base_url, err)
+                raise LLMUnavailableError(self.base_url, self.get_start_command())
+            except httpx.RequestError as err:
+                last_exception = err
+                if attempt == 0:
+                    continue
+                logger.error("Network error talking to Ollama: %s", err)
+                raise LLMUnavailableError(self.base_url, self.get_start_command())
+
+        raise LLMUnavailableError(self.base_url, self.get_start_command())
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Check if Ollama service is running and configured model is pulled."""
+        llm_online = False
+        llm_message = "Connected to Ollama."
+
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                resp = await client.get(f"{self.base_url}/api/tags")
+                if resp.status_code == 200:
+                    llm_online = True
+                    data = resp.json()
+                    model_names = [m.get("name", "") for m in data.get("models", [])]
+                    # Check if configured model matches
+                    target_clean = self.model_name.split(":")[0].lower()
+                    model_found = any(target_clean in m.lower() for m in model_names)
+                    if not model_found:
+                        llm_message = (
+                            f"Ollama is running, but model '{self.model_name}' is not pulled. "
+                            f"Run 'ollama pull {self.model_name}'"
+                        )
+                else:
+                    llm_message = f"Ollama returned HTTP {resp.status_code}"
+        except httpx.ConnectError:
+            llm_message = f"Ollama is not running at {self.base_url}. Run 'ollama serve'"
+        except httpx.TimeoutException:
+            llm_message = "Ollama health check timed out."
+        except Exception as e:
+            llm_message = f"Health check failed: {str(e)}"
+
+        return {
+            "status": "connected" if llm_online else "unreachable",
+            "backend": "ollama",
+            "base_url": self.base_url,
+            "model_name": self.model_name,
+            "context_size": self.context_size,
+            "server_online": llm_online,
+            "embedding_server_online": llm_online,
+            "message": llm_message,
+            "start_command": self.get_start_command(),
+            "embedding_start_command": self.get_embedding_start_command(),
+        }
+
+
+# --- Client Factory ---
+
+def get_llm_client(settings: Optional[Settings] = None) -> LLMClient:
+    """Factory creating the appropriate LLM client based on configured LLM_BACKEND."""
+    s = settings or get_settings()
+    backend = getattr(s, "LLM_BACKEND", "llama.cpp").lower()
+    if backend == "ollama":
+        return OllamaClient(s)
+    return LlamaCppClient(s)
+

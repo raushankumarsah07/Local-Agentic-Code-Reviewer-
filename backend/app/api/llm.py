@@ -13,6 +13,8 @@ from app.db import crud
 from app.db.session import get_db
 from app.llm.client import (
     LlamaCppClient,
+    OllamaClient,
+    get_llm_client,
     LLMInvalidResponseError,
     LLMTimeoutError,
     LLMUnavailableError,
@@ -31,7 +33,7 @@ router = APIRouter(tags=["Local LLM Explanation"])
 
 def get_explainer_service(settings: Settings = Depends(get_settings)) -> FindingExplainerService:
     """Dependency provider for FindingExplainerService."""
-    client = LlamaCppClient(settings)
+    client = get_llm_client(settings)
     return FindingExplainerService(client=client, settings=settings)
 
 
@@ -172,7 +174,7 @@ async def explain_batch_endpoint(
 async def llm_health_endpoint(
     settings: Settings = Depends(get_settings),
 ) -> LLMHealthResponse:
-    """Perform connection probe against local llama-server."""
-    client = LlamaCppClient(settings)
+    """Perform connection probe against local LLM server."""
+    client = get_llm_client(settings)
     probe_result = await client.health_check()
     return LLMHealthResponse(**probe_result)

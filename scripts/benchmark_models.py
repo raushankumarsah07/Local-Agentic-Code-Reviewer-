@@ -35,7 +35,7 @@ import httpx
 from app.config import get_settings
 from app.db.models import Finding
 from app.db.session import SessionLocal
-from app.llm.client import LlamaCppClient
+from app.llm.client import LlamaCppClient, OllamaClient, get_llm_client
 from app.llm.prompts import build_explanation_prompt, strip_thinking_tags
 from app.llm.schemas import FindingExplanation
 
@@ -199,10 +199,25 @@ def export_sample_findings(output_path: Path, limit: int = 10) -> List[Dict[str,
 
 
 async def detect_model_name(base_url: str) -> str:
-    """Detect the currently loaded model on llama-server via /v1/models."""
+    """Detect the currently loaded model on llama-server via /v1/models or Ollama via /api/tags."""
+    clean_url = base_url.rstrip("/")
+    # 1. Try Ollama /api/tags
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(f"{base_url.rstrip('/')}/models")
+        ollama_url = clean_url[:-3] if clean_url.endswith("/v1") else clean_url
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(f"{ollama_url}/api/tags")
+            if resp.status_code == 200:
+                data = resp.json()
+                models = data.get("models", [])
+                if models:
+                    return models[0].get("name", "ollama_model")
+    except Exception:
+        pass
+
+    # 2. Try OpenAI-compatible /models
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(f"{clean_url}/models")
             if resp.status_code == 200:
                 data = resp.json()
                 if "data" in data and len(data["data"]) > 0:
@@ -245,7 +260,7 @@ async def run_benchmark(
     logger.info("Starting Benchmark for Model: %s against %s", model_name, base_url)
     logger.info("Evaluating %d findings sequentially...", len(sample_findings))
 
-    client = LlamaCppClient(settings)
+    client = get_llm_client(settings)
     schema = FindingExplanation.model_json_schema()
 
     total_time = 0.0
@@ -401,7 +416,7 @@ def save_results(
 
 
 def print_switch_instructions():
-    """Print developer instructions for swapping models on llama-server."""
+    """Print developer instructions for swapping models on Ollama or llama-server."""
     banner = """
 ================================================================================
 MODEL SWITCHING INSTRUCTIONS FOR BENCHMARKING:
@@ -409,19 +424,29 @@ MODEL SWITCHING INSTRUCTIONS FOR BENCHMARKING:
 Since you run one local model at a time (laptop memory budget), follow these steps
 to benchmark different candidate models:
 
-1. Stop the current llama-server:
-   pkill llama-server
-   # or press Ctrl+C in the terminal running llama-server
+A. If using OLLAMA (e.g. LLM_BACKEND=ollama):
+   1. Pull candidate models:
+      ollama pull qwen2.5-coder:7b
+      ollama pull llama3.2:3b
+      ollama pull deepseek-r1:7b
+   2. Run benchmark pointing to specific model:
+      python scripts/benchmark_models.py --model-name qwen2.5-coder:7b
+      python scripts/benchmark_models.py --model-name llama3.2:3b
 
-2. Start llama-server with your next candidate model:
-   llama-server -m /path/to/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf --port 8080 -c 4096 --n-gpu-layers 99
+B. If using LLAMA.CPP (llama-server):
+   1. Stop the current llama-server:
+      pkill llama-server
+   2. Start llama-server with your next candidate model:
+      llama-server -m /path/to/model.gguf --port 8080 -c 4096 --n-gpu-layers 99
+   3. Re-run this benchmark script:
+      python scripts/benchmark_models.py
 
-   # Other candidates examples:
-   # llama-server -m /path/to/Llama-3.2-3B-Instruct-Q4_K_M.gguf --port 8080 -c 4096
-   # llama-server -m /path/to/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf --port 8080 -c 4096
-
-3. Re-run this benchmark script:
-   python scripts/benchmark_models.py
+4. Results will automatically append to:
+   - docs/benchmarks/model_comparison.csv (fill in your 1-5 quality rating)
+   - docs/benchmarks/model_comparison.md
+================================================================================
+"""
+    print(banner)
 
 4. Results will automatically append to:
    - docs/benchmarks/model_comparison.csv (fill in your 1-5 quality rating)

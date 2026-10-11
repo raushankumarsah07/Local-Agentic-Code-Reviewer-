@@ -5,6 +5,8 @@ Local LLM Integration Module for llama.cpp / llama-server.
 from app.llm.client import (
     LLMClient,
     LlamaCppClient,
+    OllamaClient,
+    get_llm_client,
     LLMError,
     LLMUnavailableError,
     LLMTimeoutError,
@@ -32,6 +34,8 @@ from app.llm.schemas import (
 __all__ = [
     "LLMClient",
     "LlamaCppClient",
+    "OllamaClient",
+    "get_llm_client",
     "LLMError",
     "LLMUnavailableError",
     "LLMTimeoutError",

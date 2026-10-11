@@ -465,7 +465,93 @@ def test_api_llm_health_endpoint(client: TestClient):
 
 
 # -----------------------------------------------------------------------------
-# 5. Optional Integration Test (Live Server)
+# 5. Ollama Client Tests
+# -----------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_ollama_client_valid_response(mock_settings: Settings):
+    """Test Ollama client successfully parses Ollama native HTTP response."""
+    from app.llm.client import OllamaClient
+    client = OllamaClient(mock_settings)
+
+    mock_ollama_payload = {
+        "model": "test-llama-3.2",
+        "message": {
+            "role": "assistant",
+            "content": '{"problem":"Insecure input","risk":"Injection","recommended_fix":"Sanitize","confidence_note":"High"}',
+        },
+        "prompt_eval_count": 85,
+        "eval_count": 35,
+        "eval_duration": 1_000_000_000,  # 1.0 second = 35 tps
+    }
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_http_response = httpx.Response(
+            status_code=200,
+            json=mock_ollama_payload,
+            request=httpx.Request("POST", f"{client.base_url}/api/chat"),
+        )
+        mock_post.return_value = mock_http_response
+
+        res = await client.chat(
+            messages=[{"role": "user", "content": "Explain finding"}],
+        )
+
+        assert "Insecure input" in res.content
+        assert res.prompt_tokens == 85
+        assert res.completion_tokens == 35
+        assert res.tokens_per_second == 35.0
+
+
+@pytest.mark.asyncio
+async def test_ollama_client_server_unavailable(mock_settings: Settings):
+    """Test Ollama connection failure raises LLMUnavailableError with ollama serve."""
+    from app.llm.client import OllamaClient
+    client = OllamaClient(mock_settings)
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+        with pytest.raises(LLMUnavailableError) as exc_info:
+            await client.chat(messages=[{"role": "user", "content": "Test"}])
+
+        assert "ollama serve" in str(exc_info.value).lower()
+
+
+@pytest.mark.asyncio
+async def test_ollama_client_health_check(mock_settings: Settings):
+    """Test Ollama health probe via /api/tags."""
+    from app.llm.client import OllamaClient
+    client = OllamaClient(mock_settings)
+
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = httpx.Response(
+            status_code=200,
+            json={"models": [{"name": "test-llama-3.2:latest"}]},
+            request=httpx.Request("GET", f"{client.base_url}/api/tags"),
+        )
+
+        res = await client.health_check()
+        assert res["backend"] == "ollama"
+        assert res["server_online"] is True
+        assert "Connected to Ollama" in res["message"]
+
+
+def test_get_llm_client_factory(mock_settings: Settings):
+    """Test get_llm_client factory returns OllamaClient or LlamaCppClient."""
+    from app.llm.client import OllamaClient, LlamaCppClient, get_llm_client
+
+    mock_settings.LLM_BACKEND = "ollama"
+    c1 = get_llm_client(mock_settings)
+    assert isinstance(c1, OllamaClient)
+
+    mock_settings.LLM_BACKEND = "llama.cpp"
+    c2 = get_llm_client(mock_settings)
+    assert isinstance(c2, LlamaCppClient)
+
+
+# -----------------------------------------------------------------------------
+# 6. Optional Integration Test (Live Server)
 # -----------------------------------------------------------------------------
 
 @pytest.mark.asyncio
