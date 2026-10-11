@@ -1,0 +1,37 @@
+"""
+backend/app/rag/__init__.py
+
+RAG (Retrieval-Augmented Generation) Module for Phase 9.
+Provides AST-aware chunking, local vector embedding, persistent ChromaDB indexing,
+and repository retrieval.
+"""
+
+from app.rag.chunker import (
+    CodeChunk,
+    ASTChunker,
+    chunk_file,
+)
+from app.rag.embedder import (
+    BaseEmbedder,
+    LlamaCppEmbedder,
+    OllamaEmbedder,
+    DeterministicEmbedder,
+    get_embedder,
+)
+from app.rag.vector_store import (
+    ChromaStoreManager,
+    sanitize_collection_name,
+)
+
+__all__ = [
+    "CodeChunk",
+    "ASTChunker",
+    "chunk_file",
+    "BaseEmbedder",
+    "LlamaCppEmbedder",
+    "OllamaEmbedder",
+    "DeterministicEmbedder",
+    "get_embedder",
+    "ChromaStoreManager",
+    "sanitize_collection_name",
+]
