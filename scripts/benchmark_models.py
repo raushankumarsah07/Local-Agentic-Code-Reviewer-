@@ -448,13 +448,6 @@ B. If using LLAMA.CPP (llama-server):
 """
     print(banner)
 
-4. Results will automatically append to:
-   - docs/benchmarks/model_comparison.csv (fill in your 1-5 quality rating)
-   - docs/benchmarks/model_comparison.md
-================================================================================
-"""
-    print(banner)
-
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark local LLM models on static analysis findings")
