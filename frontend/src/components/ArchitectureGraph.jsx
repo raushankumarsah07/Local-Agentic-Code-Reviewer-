@@ -46,7 +46,8 @@ function getFolderTheme(path, isExternal) {
 }
 
 // Custom Node Component
-const CustomFileNode = ({ data, selected }) => {
+const CustomFileNode = ({ data = {}, selected }) => {
+  if (!data) return null;
   const theme = getFolderTheme(data.path, data.is_external);
   const isHighlighted = data.isHighlighted;
   const isDimmed = data.isDimmed;
@@ -72,7 +73,7 @@ const CustomFileNode = ({ data, selected }) => {
           )}
         </div>
         <div className="truncate">
-          <p className="text-xs font-bold text-white truncate max-w-[140px]">{data.label}</p>
+          <p className="text-xs font-bold text-white truncate max-w-[140px]">{data.label || 'file'}</p>
           <p className="text-[10px] text-slate-400 truncate max-w-[140px] font-mono">
             {data.path || 'external'}
           </p>
@@ -84,14 +85,14 @@ const CustomFileNode = ({ data, selected }) => {
         <div className="flex items-center space-x-2">
           <span className="flex items-center space-x-0.5" title="In-degree (times imported)">
             <ArrowDownRight className="h-3 w-3 text-emerald-400" />
-            <strong className="text-slate-200">{data.in_degree}</strong>
+            <strong className="text-slate-200">{data.in_degree || 0}</strong>
           </span>
           <span className="flex items-center space-x-0.5" title="Out-degree (imports count)">
             <ArrowUpRight className="h-3 w-3 text-indigo-400" />
-            <strong className="text-slate-200">{data.out_degree}</strong>
+            <strong className="text-slate-200">{data.out_degree || 0}</strong>
           </span>
         </div>
-        {!data.is_external && data.line_count > 0 && (
+        {!data.is_external && (data.line_count || 0) > 0 && (
           <span className="font-mono text-slate-400">{data.line_count}L</span>
         )}
       </div>
@@ -101,6 +102,7 @@ const CustomFileNode = ({ data, selected }) => {
   );
 };
 
+// Define nodeTypes outside of component to prevent re-creation warnings
 const nodeTypes = {
   customFileNode: CustomFileNode,
 };
@@ -133,8 +135,8 @@ function getLayoutedElements(nodes, edges, direction = 'TB') {
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - 115,
-        y: nodeWithPosition.y - 47.5,
+        x: (nodeWithPosition?.x || 0) - 115,
+        y: (nodeWithPosition?.y || 0) - 47.5,
       },
     };
   });
@@ -150,7 +152,9 @@ export default function ArchitectureGraph({
 }) {
   // Convert API graph data into React Flow nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {
-    if (!graphData || !graphData.nodes) return { initialNodes: [], initialEdges: [] };
+    if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
+      return { initialNodes: [], initialEdges: [] };
+    }
 
     const flowNodes = graphData.nodes.map((n) => {
       const isMatch = searchQuery && n.label.toLowerCase().includes(searchQuery.toLowerCase());
@@ -168,7 +172,7 @@ export default function ArchitectureGraph({
       };
     });
 
-    const flowEdges = graphData.edges.map((e) => ({
+    const flowEdges = (graphData.edges || []).map((e) => ({
       id: e.id,
       source: e.source,
       target: e.target,
@@ -191,7 +195,12 @@ export default function ArchitectureGraph({
       },
     }));
 
-    return getLayoutedElements(flowNodes, flowEdges, 'TB');
+    // getLayoutedElements returns { nodes, edges } -> map to { initialNodes, initialEdges }
+    const layout = getLayoutedElements(flowNodes, flowEdges, 'TB');
+    return {
+      initialNodes: layout.nodes,
+      initialEdges: layout.edges,
+    };
   }, [graphData, searchQuery]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -205,13 +214,15 @@ export default function ArchitectureGraph({
 
   const handleNodeClick = useCallback(
     (event, node) => {
-      onNodeClick(node.data);
+      if (node && node.data) {
+        onNodeClick(node.data);
+      }
     },
     [onNodeClick]
   );
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative" style={{ minHeight: '500px' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -220,14 +231,15 @@ export default function ArchitectureGraph({
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         fitView
-        minZoom={0.2}
+        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.1}
         maxZoom={2.5}
       >
         <Background color="#334155" gap={20} size={1} />
         <Controls />
         <MiniMap
           nodeStrokeWidth={3}
-          nodeColor={(node) => (node.data.is_external ? '#64748b' : '#818cf8')}
+          nodeColor={(node) => (node.data?.is_external ? '#64748b' : '#818cf8')}
           maskColor="rgba(15, 23, 42, 0.7)"
         />
       </ReactFlow>
