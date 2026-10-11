@@ -1,0 +1,122 @@
+[
+  {
+    "id": 7,
+    "project_id": "830af35ad1bb",
+    "type": "complexity",
+    "severity": "Medium",
+    "title": "High Cyclomatic Complexity (13) in function 'complex_scientific_pipeline'",
+    "file": "history.py",
+    "start_line": 34,
+    "end_line": 62,
+    "source_tool": "mccabe",
+    "evidence_snippet": "def complex_scientific_pipeline(a: float, b: float, c: float, mode: str) -> float:\n    \"\"\"Multi-stage scientific branching calculation pipeline.\"\"\"\n    if mode == \"add\":\n        if a > 0:\n            if b > 0:"
+  },
+  {
+    "id": 8,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "Medium",
+    "title": "Dead-Code Candidate: Unreachable file 'history.py'",
+    "file": "history.py",
+    "start_line": 1,
+    "end_line": 67,
+    "source_tool": "graph_reachability",
+    "evidence_snippet": "# File 'history.py' has no incoming import paths from detected entry points: ['main.py', 'utils/__init__.py']"
+  },
+  {
+    "id": 9,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "Low",
+    "title": "Dead-Code Candidate: Unused method 'subtract'",
+    "file": "calculator.py",
+    "start_line": 18,
+    "end_line": 21,
+    "source_tool": "vulture",
+    "evidence_snippet": "def subtract(...):  # Vulture confidence: 60%"
+  },
+  {
+    "id": 10,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "Low",
+    "title": "Dead-Code Candidate: Unused method 'divide'",
+    "file": "calculator.py",
+    "start_line": 28,
+    "end_line": 33,
+    "source_tool": "vulture",
+    "evidence_snippet": "def divide(...):  # Vulture confidence: 60%"
+  },
+  {
+    "id": 11,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "High",
+    "title": "Dead-Code Candidate: Unused variable 'API_SECRET_KEY'",
+    "file": "history.py",
+    "start_line": 9,
+    "end_line": 9,
+    "source_tool": "graph_reachability+vulture",
+    "evidence_snippet": "def API_SECRET_KEY(...):  # Vulture confidence: 60%"
+  },
+  {
+    "id": 12,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "High",
+    "title": "Dead-Code Candidate: Unused variable 'DB_PASSWORD'",
+    "file": "history.py",
+    "start_line": 10,
+    "end_line": 10,
+    "source_tool": "graph_reachability+vulture",
+    "evidence_snippet": "def DB_PASSWORD(...):  # Vulture confidence: 60%"
+  },
+  {
+    "id": 13,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "High",
+    "title": "Dead-Code Candidate: Unused function 'execute_shell_export'",
+    "file": "history.py",
+    "start_line": 13,
+    "end_line": 15,
+    "source_tool": "graph_reachability+vulture",
+    "evidence_snippet": "def execute_shell_export(...):  # Vulture confidence: 60%"
+  },
+  {
+    "id": 14,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "High",
+    "title": "Dead-Code Candidate: Unused function 'eval_formula_expression'",
+    "file": "history.py",
+    "start_line": 18,
+    "end_line": 20,
+    "source_tool": "graph_reachability+vulture",
+    "evidence_snippet": "def eval_formula_expression(...):  # Vulture confidence: 60%"
+  },
+  {
+    "id": 15,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "High",
+    "title": "Dead-Code Candidate: Unused function 'load_history_cache'",
+    "file": "history.py",
+    "start_line": 23,
+    "end_line": 25,
+    "source_tool": "graph_reachability+vulture",
+    "evidence_snippet": "def load_history_cache(...):  # Vulture confidence: 60%"
+  },
+  {
+    "id": 16,
+    "project_id": "830af35ad1bb",
+    "type": "dead_code",
+    "severity": "High",
+    "title": "Dead-Code Candidate: Unused function 'query_user_history'",
+    "file": "history.py",
+    "start_line": 28,
+    "end_line": 31,
+    "source_tool": "graph_reachability+vulture",
+    "evidence_snippet": "def query_user_history(...):  # Vulture confidence: 60%"
+  }
+]

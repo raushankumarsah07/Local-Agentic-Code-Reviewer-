@@ -3,21 +3,28 @@ import { Layers, Upload, FolderCode, Activity, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function Navbar({ activeTab, setActiveTab, onRefresh }) {
-  const [serverHealth, setServerHealth] = useState({ status: 'checking', ollama: null });
+  const [serverHealth, setServerHealth] = useState({ status: 'checking' });
+  const [llmHealth, setLlmHealth] = useState({ server_online: false, model_name: 'llama3.2', message: '' });
 
   useEffect(() => {
     checkHealth();
+    const interval = setInterval(checkHealth, 15000); // Check every 15s
+    return () => clearInterval(interval);
   }, []);
 
   const checkHealth = async () => {
     try {
       const data = await api.checkHealth();
-      setServerHealth({
-        status: data.status,
-        ollama: data.ollama_service?.status || 'unreachable',
-      });
+      setServerHealth({ status: data.status });
     } catch {
-      setServerHealth({ status: 'offline', ollama: 'offline' });
+      setServerHealth({ status: 'offline' });
+    }
+
+    try {
+      const llmData = await api.checkLLMHealth();
+      setLlmHealth(llmData);
+    } catch {
+      setLlmHealth({ server_online: false, model_name: 'local', message: 'llama-server offline' });
     }
   };
 
@@ -63,16 +70,39 @@ export default function Navbar({ activeTab, setActiveTab, onRefresh }) {
             <span>Upload ZIP</span>
           </button>
 
-          {/* Status Badge */}
-          <div className="hidden md:flex items-center space-x-2 pl-4 border-l border-slate-800 text-xs">
-            <span className={`inline-block h-2 w-2 rounded-full ${
-              serverHealth.status === 'healthy' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
-            }`} />
-            <span className="text-slate-400">
-              API: <strong className={serverHealth.status === 'healthy' ? 'text-emerald-400' : 'text-rose-400'}>
-                {serverHealth.status}
-              </strong>
-            </span>
+          {/* Status Badges: API & LLM */}
+          <div className="hidden md:flex items-center space-x-3 pl-4 border-l border-slate-800 text-xs">
+            {/* Backend API */}
+            <div className="flex items-center space-x-1.5">
+              <span className={`inline-block h-2 w-2 rounded-full ${
+                serverHealth.status === 'healthy' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+              }`} />
+              <span className="text-slate-400">
+                API: <strong className={serverHealth.status === 'healthy' ? 'text-emerald-400' : 'text-rose-400'}>
+                  {serverHealth.status}
+                </strong>
+              </span>
+            </div>
+
+            {/* Local llama-server status */}
+            <div
+              className="flex items-center space-x-1.5 cursor-help"
+              title={
+                llmHealth.server_online
+                  ? `Local LLM ready (${llmHealth.model_name})`
+                  : `llama-server is offline. Start command:\n${llmHealth.start_command || 'llama-server -m models/llama3.2.gguf --port 8080'}`
+              }
+            >
+              <span className={`inline-block h-2 w-2 rounded-full ${
+                llmHealth.server_online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-500'
+              }`} />
+              <span className="text-slate-400">
+                LLM:{' '}
+                <strong className={llmHealth.server_online ? 'text-emerald-400' : 'text-amber-400'}>
+                  {llmHealth.server_online ? llmHealth.model_name : 'offline'}
+                </strong>
+              </span>
+            </div>
           </div>
         </nav>
       </div>

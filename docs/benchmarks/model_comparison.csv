@@ -1,0 +1,2 @@
+timestamp,model_name,base_url,num_findings,avg_latency_s,tokens_per_second,valid_json_rate_pct,manual_quality_rating_1_to_5
+2026-10-11 15:14:19,mock-eval-model-7b,mock-server,10,0.05,1861.6,100.0,

@@ -15,6 +15,45 @@ export default function SourceViewerModal({
   const [copied, setCopied] = useState(false);
   const highlightedRowRef = useRef(null);
 
+  // Local LLM explanation state in Source Viewer
+  const [explanation, setExplanation] = useState(null);
+  const [explaining, setExplaining] = useState(false);
+  const [explainError, setExplainError] = useState(null);
+  const [showExplanationCard, setShowExplanationCard] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && highlightRange?.id) {
+      // Attempt to load existing explanation if available
+      api.getFindingExplanation(highlightRange.id)
+        .then((data) => {
+          setExplanation(data);
+          setShowExplanationCard(true);
+        })
+        .catch(() => {
+          setExplanation(null);
+          setShowExplanationCard(false);
+        });
+    } else {
+      setExplanation(null);
+      setShowExplanationCard(false);
+    }
+  }, [isOpen, highlightRange?.id]);
+
+  const handleExplainCurrentFinding = async () => {
+    if (!highlightRange?.id || explaining) return;
+    setExplaining(true);
+    setExplainError(null);
+    setShowExplanationCard(true);
+    try {
+      const result = await api.explainFinding(highlightRange.id, true);
+      setExplanation(result);
+    } catch (err) {
+      setExplainError(err.message || 'Failed to explain finding with local LLM');
+    } finally {
+      setExplaining(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && projectId && filePath) {
       loadFile();
@@ -142,7 +181,7 @@ export default function SourceViewerModal({
 
         {/* Highlight Banner if viewing a finding */}
         {highlightRange?.start && (
-          <div className="px-6 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
+          <div className="px-6 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex items-center space-x-2 truncate">
               <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
               <span className="text-slate-300">
@@ -152,12 +191,104 @@ export default function SourceViewerModal({
                 (Lines {highlightRange.start}{highlightRange.end && highlightRange.end !== highlightRange.start ? `–${highlightRange.end}` : ''})
               </span>
             </div>
-            <button
-              onClick={scrollToHighlight}
-              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-brand-300 font-mono text-[11px] transition shrink-0 ml-3"
-            >
-              Scroll to Line {highlightRange.start}
-            </button>
+            
+            <div className="flex items-center space-x-2">
+              {highlightRange.id && (
+                <button
+                  onClick={handleExplainCurrentFinding}
+                  disabled={explaining}
+                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-medium transition disabled:opacity-50"
+                  title="Generate or reload AI explanation"
+                >
+                  {explaining ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Running local model...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>{explanation ? 'Re-Explain' : 'Explain'}</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              <button
+                onClick={scrollToHighlight}
+                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-brand-300 font-mono text-[11px] transition shrink-0"
+              >
+                Scroll to Line {highlightRange.start}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* AI Explanation Card in Source Viewer */}
+        {showExplanationCard && (
+          <div className="px-6 py-3 bg-slate-900/90 border-b border-slate-800 max-h-56 overflow-y-auto text-xs">
+            {explaining ? (
+              <div className="flex items-center space-x-2.5 text-indigo-300 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
+                <span className="font-medium">Running local model... Analyzing finding context</span>
+              </div>
+            ) : explainError ? (
+              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 space-y-1">
+                <div className="flex items-center justify-between font-semibold">
+                  <span>Failed to generate explanation</span>
+                  <button onClick={() => setExplainError(null)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+                <p className="text-[11px]">{explainError}</p>
+                <p className="text-[10px] text-slate-400 font-mono mt-1">
+                  Start server: llama-server -m /path/to/model.gguf --port 8080 -c 4096
+                </p>
+              </div>
+            ) : explanation?.explanation ? (
+              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-indigo-500/30 space-y-2">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="h-4 w-4 text-indigo-400" />
+                    <span className="font-semibold text-white">Local LLM Explanation</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      AI-generated explanation, verify before acting
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-[11px] text-slate-400 font-mono">
+                    <span>{explanation.model_name}</span>
+                    <span>•</span>
+                    <span>{(explanation.latency_ms / 1000).toFixed(1)}s</span>
+                    <button
+                      onClick={() => setShowExplanationCard(false)}
+                      className="ml-2 text-slate-400 hover:text-white"
+                      title="Collapse"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-slate-300 pt-1">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">Problem</span>
+                    <p className="mt-0.5 leading-relaxed">{explanation.explanation.problem}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-amber-500/80 tracking-wider block">Risk</span>
+                    <p className="mt-0.5 leading-relaxed">{explanation.explanation.risk}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-500/80 tracking-wider block">Recommended Fix</span>
+                    <p className="mt-0.5 leading-relaxed">{explanation.explanation.recommended_fix}</p>
+                  </div>
+                </div>
+
+                {explanation.explanation.confidence_note && (
+                  <div className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/60">
+                    Note: {explanation.explanation.confidence_note}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         )}
 

@@ -143,4 +143,27 @@ export const api = {
     const query = type ? `?type=${encodeURIComponent(type)}` : '';
     return request(`/projects/${projectId}/findings${query}`, { method: 'DELETE' });
   },
+
+  // Local LLM Explanations (Phase 8)
+  explainFinding: (findingId, force = false) =>
+    request(`/findings/${findingId}/explain?force=${force}`, {
+      method: 'POST',
+    }),
+
+  getFindingExplanation: (findingId) =>
+    request(`/findings/${findingId}/explanation`),
+
+  explainBatch: (projectId, { severityFilter = null, limit = 10, force = false } = {}) =>
+    request(`/projects/${projectId}/explain-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        severity_filter: severityFilter,
+        limit,
+        force,
+      }),
+    }),
+
+  checkLLMHealth: () =>
+    request('/llm/health'),
 };

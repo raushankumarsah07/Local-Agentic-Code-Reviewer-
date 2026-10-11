@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.api.findings import router as findings_router
 from app.api.graph import router as graph_router
 from app.api.health import router as health_router
+from app.api.llm import router as llm_router
 from app.api.projects import router as projects_router
 from app.config import get_settings
 from app.db.session import init_db
@@ -62,6 +63,7 @@ app.include_router(health_router)
 app.include_router(projects_router)
 app.include_router(graph_router)
 app.include_router(findings_router)
+app.include_router(llm_router)
 
 
 @app.get("/", tags=["General"])

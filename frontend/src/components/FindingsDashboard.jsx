@@ -20,6 +20,11 @@ import {
   X,
   SlidersHorizontal,
   Code2,
+  Sparkles,
+  Cpu,
+  Brain,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { api } from '../api/client';
 
@@ -46,6 +51,13 @@ export default function FindingsDashboard({
   const [selectedFile, setSelectedFile] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFindingIds, setExpandedFindingIds] = useState(new Set());
+
+  // LLM Explanations State
+  const [explanationsMap, setExplanationsMap] = useState({});
+  const [loadingExplainIds, setLoadingExplainIds] = useState(new Set());
+  const [explainErrorMap, setExplainErrorMap] = useState({});
+  const [batchExplaining, setBatchExplaining] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
 
   // Load findings and summary data
   const loadData = async () => {
@@ -126,12 +138,93 @@ export default function FindingsDashboard({
     }
   };
 
-  // Toggle row expansion
-  const toggleExpand = (id) => {
+  // Explain single finding with local LLM
+  const handleExplainFinding = async (findingId, force = false) => {
+    setLoadingExplainIds((prev) => new Set(prev).add(findingId));
+    setExplainErrorMap((prev) => {
+      const next = { ...prev };
+      delete next[findingId];
+      return next;
+    });
+
+    try {
+      const result = await api.explainFinding(findingId, force);
+      setExplanationsMap((prev) => ({
+        ...prev,
+        [findingId]: result,
+      }));
+      // Expand row if not already expanded
+      setExpandedFindingIds((prev) => new Set(prev).add(findingId));
+    } catch (err) {
+      setExplainErrorMap((prev) => ({
+        ...prev,
+        [findingId]: err.message || 'Local model server error.',
+      }));
+    } finally {
+      setLoadingExplainIds((prev) => {
+        const next = new Set(prev);
+        next.delete(findingId);
+        return next;
+      });
+    }
+  };
+
+  // Batch explain all findings for project sequentially
+  const handleBatchExplain = async () => {
+    if (!activeProjectId) return;
+    setBatchExplaining(true);
+    setToastMessage('Running sequential local model batch explanations...');
+    try {
+      const res = await api.explainBatch(activeProjectId, { limit: 10, force: false });
+      setToastMessage(
+        `Batch complete: ${res.successful} explained, ${res.fallback_count} fallbacks, ${res.failed} errors.`
+      );
+      // Map results
+      const newMap = { ...explanationsMap };
+      res.results.forEach((item) => {
+        if (item.explanation) {
+          newMap[item.finding_id] = {
+            id: item.finding_id,
+            finding_id: item.finding_id,
+            model_name: 'llama3.2',
+            prompt_version: 'v1.0',
+            explanation: item.explanation,
+            latency_ms: item.latency_ms,
+            tokens: 0,
+            status: item.status,
+            created_at: new Date().toISOString(),
+          };
+        }
+      });
+      setExplanationsMap(newMap);
+      setTimeout(() => setToastMessage(null), 6000);
+    } catch (err) {
+      alert(`Batch explanation error: ${err.message}`);
+    } finally {
+      setBatchExplaining(false);
+    }
+  };
+
+  // Toggle row expansion (and load cached explanation if available)
+  const toggleExpand = async (id) => {
     setExpandedFindingIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        // If not already fetched, check DB for cached explanation
+        if (!explanationsMap[id] && !loadingExplainIds.has(id)) {
+          api
+            .getFindingExplanation(id)
+            .then((data) => {
+              setExplanationsMap((m) => ({ ...m, [id]: data }));
+            })
+            .catch(() => {
+              // Not yet explained, leave empty until user clicks Explain
+            });
+        }
+      }
       return next;
     });
   };
@@ -250,16 +343,36 @@ export default function FindingsDashboard({
               </div>
               <div>
                 <h2 className="text-lg font-bold text-white tracking-tight">
-                  Static Code Review & Vulnerability Findings
+                  Static Code Review & Grounded LLM Explanations
                 </h2>
                 <p className="text-xs text-slate-400">
-                  McCabe complexity, dead-code candidates, Tarjan dependency cycles, and Bandit security scanner.
+                  Deterministic analysis decides facts; local llama.cpp explains findings grounded in code evidence.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Batch Explain Button */}
+            <button
+              onClick={handleBatchExplain}
+              disabled={batchExplaining || findings.length === 0}
+              className="inline-flex items-center space-x-2 px-3 py-2 rounded-xl bg-purple-600/80 hover:bg-purple-600 text-white text-xs font-semibold shadow-md transition disabled:opacity-50"
+              title="Explain findings sequentially using local llama-server"
+            >
+              {batchExplaining ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Explaining Batch...</span>
+                </>
+              ) : (
+                <>
+                  <Brain className="h-3.5 w-3.5" />
+                  <span>Batch Explain (LLM)</span>
+                </>
+              )}
+            </button>
+
             {/* Run All Analyzers */}
             <button
               onClick={handleRunAllAnalyzers}
@@ -280,11 +393,11 @@ export default function FindingsDashboard({
             </button>
 
             {/* Individual Triggers */}
-            <div className="hidden sm:flex items-center space-x-1.5 bg-slate-800/70 p-1 rounded-xl border border-slate-700/60 text-xs">
+            <div className="hidden sm:flex items-center space-x-1 bg-slate-800/70 p-1 rounded-xl border border-slate-700/60 text-xs">
               <button
                 onClick={() => handleRunSingleAnalyzer('complexity')}
                 disabled={analyzing}
-                className="px-2.5 py-1 rounded-lg hover:bg-slate-700 text-slate-300 transition"
+                className="px-2 py-1 rounded-lg hover:bg-slate-700 text-slate-300 transition"
                 title="Run McCabe Cyclomatic Complexity"
               >
                 Complexity
@@ -292,7 +405,7 @@ export default function FindingsDashboard({
               <button
                 onClick={() => handleRunSingleAnalyzer('dead_code')}
                 disabled={analyzing}
-                className="px-2.5 py-1 rounded-lg hover:bg-slate-700 text-slate-300 transition"
+                className="px-2 py-1 rounded-lg hover:bg-slate-700 text-slate-300 transition"
                 title="Run Graph Reachability & Vulture Dead Code"
               >
                 Dead Code
@@ -300,7 +413,7 @@ export default function FindingsDashboard({
               <button
                 onClick={() => handleRunSingleAnalyzer('architecture')}
                 disabled={analyzing}
-                className="px-2.5 py-1 rounded-lg hover:bg-slate-700 text-slate-300 transition"
+                className="px-2 py-1 rounded-lg hover:bg-slate-700 text-slate-300 transition"
                 title="Run Tarjan's SCC & God Modules"
               >
                 Architecture
@@ -308,7 +421,7 @@ export default function FindingsDashboard({
               <button
                 onClick={() => handleRunSingleAnalyzer('security')}
                 disabled={analyzing}
-                className="px-2.5 py-1 rounded-lg hover:bg-slate-700 text-slate-300 transition"
+                className="px-2 py-1 rounded-lg hover:bg-slate-700 text-slate-300 transition"
                 title="Run Bandit & AST Security Rules"
               >
                 Security
@@ -629,6 +742,9 @@ export default function FindingsDashboard({
             <div className="divide-y divide-slate-800/80">
               {filteredFindings.map((finding) => {
                 const isExpanded = expandedFindingIds.has(finding.id);
+                const isExplaining = loadingExplainIds.has(finding.id);
+                const explanation = explanationsMap[finding.id];
+                const explainError = explainErrorMap[finding.id];
 
                 return (
                   <div key={finding.id} className="transition-colors hover:bg-slate-800/30">
@@ -671,10 +787,10 @@ export default function FindingsDashboard({
                         </div>
                       </div>
 
-                      {/* File Link & Source Action */}
-                      <div className="flex items-center space-x-3 text-xs shrink-0 pl-7 sm:pl-0">
+                      {/* File Link, AI Action & Source Action */}
+                      <div className="flex items-center space-x-2 text-xs shrink-0 pl-7 sm:pl-0">
                         {/* File location */}
-                        <span className="font-mono text-slate-400 text-[11px] truncate max-w-[160px] sm:max-w-[220px]">
+                        <span className="font-mono text-slate-400 text-[11px] truncate max-w-[140px] sm:max-w-[200px]">
                           {finding.file}:{finding.start_line}
                           {finding.end_line && finding.end_line !== finding.start_line
                             ? `-${finding.end_line}`
@@ -682,15 +798,39 @@ export default function FindingsDashboard({
                         </span>
 
                         {/* Source Tool Badge */}
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700/60 font-mono hidden md:inline">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700/60 font-mono hidden lg:inline">
                           {finding.source_tool}
                         </span>
+
+                        {/* AI Explain Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExplainFinding(finding.id, !!explanation);
+                          }}
+                          disabled={isExplaining}
+                          className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 text-xs font-medium transition disabled:opacity-50"
+                          title="Generate or refresh grounded AI explanation using local llama-server"
+                        >
+                          {isExplaining ? (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin text-purple-400" />
+                              <span className="hidden sm:inline">Running...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-3 w-3 text-purple-400" />
+                              <span>{explanation ? 'Re-Explain' : 'Explain'}</span>
+                            </>
+                          )}
+                        </button>
 
                         {/* Click-through View Source Button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             onViewSource(finding.file, {
+                              id: finding.id,
                               start: finding.start_line,
                               end: finding.end_line,
                               severity: finding.severity,
@@ -701,23 +841,115 @@ export default function FindingsDashboard({
                           title="Open file with highlighted lines"
                         >
                           <FileCode className="h-3.5 w-3.5" />
-                          <span>View Line {finding.start_line}</span>
+                          <span className="hidden sm:inline">Line {finding.start_line}</span>
                         </button>
                       </div>
                     </div>
 
                     {/* Expanded Detail Panel */}
                     {isExpanded && (
-                      <div className="px-6 pb-5 pt-1 bg-slate-950/70 border-t border-slate-800/60 space-y-3.5 animate-fadeIn">
-                        {/* Explanation */}
-                        {finding.explanation && (
-                          <div>
-                            <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider mb-1">
-                              Analysis & Reasoning
+                      <div className="px-6 pb-5 pt-2 bg-slate-950/70 border-t border-slate-800/60 space-y-4 animate-fadeIn">
+                        {/* 1. Grounded AI Explanation Card (Phase 8 Structured Output) */}
+                        {isExplaining ? (
+                          <div className="p-4 rounded-xl bg-slate-900/80 border border-purple-500/30 flex items-center justify-center space-x-3 text-xs text-purple-300">
+                            <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+                            <span>Running local model (llama-server) to explain finding grounded in evidence...</span>
+                          </div>
+                        ) : explainError ? (
+                          <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 text-xs space-y-2">
+                            <div className="flex items-center space-x-2 text-rose-400 font-semibold">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span>Local LLM Server Unavailable</span>
                             </div>
-                            <p className="text-xs text-slate-300 leading-relaxed bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                              {finding.explanation}
+                            <p className="text-slate-300 font-mono text-[11px] whitespace-pre-wrap">{explainError}</p>
+                            <p className="text-slate-400">
+                              Start llama-server on localhost and click <strong>Retry Explanation</strong>.
                             </p>
+                            <button
+                              onClick={() => handleExplainFinding(finding.id, true)}
+                              className="mt-2 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs transition"
+                            >
+                              Retry Explanation
+                            </button>
+                          </div>
+                        ) : explanation ? (
+                          <div className="bg-slate-900 border border-indigo-500/40 rounded-2xl p-4 shadow-xl space-y-3.5">
+                            {/* Card Header with Mandatory Warning Badge */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+                              <div className="flex items-center space-x-2">
+                                <Sparkles className="h-4 w-4 text-purple-400" />
+                                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                  AI-Grounded Finding Explanation
+                                </span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-medium">
+                                  AI-generated explanation, verify before acting
+                                </span>
+                              </div>
+
+                              <div className="flex items-center space-x-3 text-[11px] text-slate-400 font-mono">
+                                <span>Model: <strong className="text-slate-200">{explanation.model_name}</strong></span>
+                                <span>•</span>
+                                <span>Latency: <strong className="text-slate-200">{explanation.latency_ms}ms</strong></span>
+                                {explanation.status && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="uppercase text-[10px] text-brand-300">{explanation.status}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 4 Structured Output Fields */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                              {/* Problem */}
+                              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+                                <div className="text-[11px] font-bold text-rose-400 uppercase tracking-wider mb-1">
+                                  Problem & Defect
+                                </div>
+                                <p className="text-slate-200 leading-relaxed">
+                                  {explanation.explanation.problem}
+                                </p>
+                              </div>
+
+                              {/* Risk */}
+                              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+                                <div className="text-[11px] font-bold text-orange-400 uppercase tracking-wider mb-1">
+                                  Architectural Risk
+                                </div>
+                                <p className="text-slate-200 leading-relaxed">
+                                  {explanation.explanation.risk}
+                                </p>
+                              </div>
+
+                              {/* Recommended Fix */}
+                              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 md:col-span-2">
+                                <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-1">
+                                  Recommended Remediation
+                                </div>
+                                <p className="text-slate-200 leading-relaxed font-mono text-[11px] bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80 whitespace-pre-wrap">
+                                  {explanation.explanation.recommended_fix}
+                                </p>
+                              </div>
+
+                              {/* Confidence Note */}
+                              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 md:col-span-2 text-[11px] text-slate-400">
+                                <strong className="text-slate-300">Confidence Note: </strong>
+                                {explanation.explanation.confidence_note}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-3 rounded-xl bg-slate-900/40 border border-slate-800 flex items-center justify-between">
+                            <span className="text-xs text-slate-400">
+                              Generate a grounded, structured AI explanation (problem, risk, fix) with local llama-server.
+                            </span>
+                            <button
+                              onClick={() => handleExplainFinding(finding.id)}
+                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                              <span>Explain with Local LLM</span>
+                            </button>
                           </div>
                         )}
 
@@ -736,6 +968,18 @@ export default function FindingsDashboard({
                           </div>
                         )}
 
+                        {/* Analysis & Reasoning (Tool Original Text) */}
+                        {finding.explanation && (
+                          <div>
+                            <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider mb-1">
+                              Static Tool Reasoning ({finding.source_tool})
+                            </div>
+                            <p className="text-xs text-slate-300 leading-relaxed bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                              {finding.explanation}
+                            </p>
+                          </div>
+                        )}
+
                         {/* Footer details & Action */}
                         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-slate-400">
                           <div className="flex items-center space-x-3">
@@ -747,6 +991,7 @@ export default function FindingsDashboard({
                           <button
                             onClick={() =>
                               onViewSource(finding.file, {
+                                id: finding.id,
                                 start: finding.start_line,
                                 end: finding.end_line,
                                 severity: finding.severity,

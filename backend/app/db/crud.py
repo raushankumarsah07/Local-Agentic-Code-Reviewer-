@@ -12,6 +12,7 @@ from app.db.models import (
     ChunkMeta,
     CodeEntity,
     Finding,
+    FindingExplanation,
     GraphEdge,
     Project,
     ProjectFile,
@@ -336,4 +337,84 @@ def get_findings_summary(db: Session, project_id: str) -> dict:
         "by_severity": {sev: count for sev, count in severity_counts},
         "by_type": {t: count for t, count in type_counts},
     }
+
+
+def get_finding(db: Session, finding_id: int) -> Optional[Finding]:
+    """Retrieve an individual finding by its primary key ID."""
+    return db.query(Finding).filter(Finding.id == finding_id).first()
+
+
+# --- Finding Explanations CRUD (Phase 8) ---
+
+def get_finding_explanation(
+    db: Session,
+    finding_id: int,
+    model_name: Optional[str] = None,
+) -> Optional[FindingExplanation]:
+    """
+    Retrieve cached LLM explanation for a finding.
+    If model_name is provided, matches that specific model; otherwise returns latest.
+    """
+    query = (
+        db.query(FindingExplanation)
+        .filter(FindingExplanation.finding_id == finding_id)
+        .order_by(FindingExplanation.created_at.desc())
+    )
+    if model_name:
+        query = query.filter(FindingExplanation.model_name == model_name)
+    return query.first()
+
+
+def save_finding_explanation(
+    db: Session,
+    finding_id: int,
+    model_name: str,
+    prompt_version: str,
+    explanation_json: str,
+    latency_ms: int = 0,
+    tokens: int = 0,
+    status: str = "success",
+) -> FindingExplanation:
+    """
+    Persist an AI explanation record for a static analysis finding.
+    Also syncs the finding.explanation field for backwards compatibility.
+    """
+    record = FindingExplanation(
+        finding_id=finding_id,
+        model_name=model_name,
+        prompt_version=prompt_version,
+        explanation=explanation_json,
+        latency_ms=latency_ms,
+        tokens=tokens,
+        status=status,
+    )
+    db.add(record)
+
+    # Sync summary text into finding.explanation if finding exists
+    finding = get_finding(db, finding_id)
+    if finding:
+        import json
+        try:
+            parsed = json.loads(explanation_json)
+            finding.explanation = (
+                f"{parsed.get('problem', '')} Risk: {parsed.get('risk', '')} "
+                f"Fix: {parsed.get('recommended_fix', '')}"
+            )
+        except Exception:
+            finding.explanation = explanation_json
+
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def delete_finding_explanations(db: Session, finding_id: int) -> int:
+    """Delete all cached explanations for a finding (used when force=True)."""
+    count = (
+        db.query(FindingExplanation)
+        .filter(FindingExplanation.finding_id == finding_id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return count
 

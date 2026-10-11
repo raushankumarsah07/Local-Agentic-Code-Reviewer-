@@ -37,12 +37,21 @@ class Settings(BaseSettings):
     # ChromaDB Vector Store
     CHROMA_PERSIST_DIR: Path = Field(default=Path("./chroma_db"))
 
-    # Local Ollama LLM & Embedding Settings (Never hardcoded)
-    LLM_MODEL: str = Field(default="llama3.2", description="Ollama LLM model name")
-    EMBEDDING_MODEL: str = Field(default="nomic-embed-text", description="Ollama embedding model name")
-    OLLAMA_BASE_URL: str = Field(default="http://localhost:11434", description="Base URL of local Ollama server")
-    LLM_TEMPERATURE: float = Field(default=0.1, description="Sampling temperature for deterministic explanations")
-    LLM_TIMEOUT_SECONDS: int = Field(default=120, description="Timeout in seconds for LLM generation")
+    # Local LLM Runtime Settings (llama.cpp / llama-server, OpenAI-compatible)
+    LLM_BACKEND: str = Field(default="llama.cpp", description="Local LLM backend runtime (llama.cpp)")
+    LLM_BASE_URL: str = Field(default="http://127.0.0.1:8080/v1", description="OpenAI-compatible base URL for llama-server")
+    LLM_MODEL: str = Field(default="llama3.2", description="Local LLM model name")
+    LLM_TEMPERATURE: float = Field(default=0.1, description="Sampling temperature for deterministic generation")
+    LLM_CONTEXT_SIZE: int = Field(default=4096, description="Context window size in tokens")
+    LLM_TIMEOUT_SECONDS: int = Field(default=120, description="HTTP timeout in seconds for LLM inference")
+
+    # Local Embedding Server Settings (for Phase 9 RAG)
+    EMBEDDING_BACKEND: str = Field(default="llama.cpp", description="Local embedding backend runtime")
+    EMBEDDING_BASE_URL: str = Field(default="http://127.0.0.1:8081/v1", description="Base URL for embedding server")
+    EMBEDDING_MODEL: str = Field(default="nomic-embed-text", description="Embedding model name")
+
+    # Backward compatibility fallback
+    OLLAMA_BASE_URL: str = Field(default="http://127.0.0.1:11434", description="Legacy Ollama endpoint fallback")
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
