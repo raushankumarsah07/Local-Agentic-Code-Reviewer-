@@ -101,7 +101,7 @@ export default function UploadModal({ onUploadSuccess, onCancel }) {
           <p className="text-base font-medium text-white mb-1">
             Drag and drop your ZIP archive here, or <span className="text-brand-400 underline">browse</span>
           </p>
-          <p className="text-xs text-slate-500">Supports standard Python repository ZIP archives up to 50 MB</p>
+          <p className="text-xs text-slate-500">Supports code repository ZIP archives up to 250 MB (dependencies like node_modules and build caches are filtered automatically)</p>
         </div>
 
         {/* Selected File Card */}

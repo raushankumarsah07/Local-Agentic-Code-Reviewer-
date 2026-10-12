@@ -28,8 +28,8 @@ class Settings(BaseSettings):
 
     # Storage and File Processing Limits
     WORKSPACE_DIR: Path = Field(default=Path("workspace"))
-    MAX_UPLOAD_SIZE_MB: int = Field(default=50, description="Max allowed ZIP file upload size in Megabytes")
-    MAX_FILE_COUNT: int = Field(default=5000, description="Max total files allowed inside uploaded ZIP archive")
+    MAX_UPLOAD_SIZE_MB: int = Field(default=250, description="Max allowed ZIP file upload size in Megabytes")
+    MAX_FILE_COUNT: int = Field(default=50000, description="Max total files allowed inside uploaded ZIP archive")
 
     # Database Configuration (SQLite by default, switchable to Postgres via connection string)
     DATABASE_URL: str = "sqlite:///./app_data/app.db"

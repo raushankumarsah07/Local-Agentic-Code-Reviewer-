@@ -158,3 +158,35 @@ def test_corrupt_zip_handling(temp_workspace: Path):
         )
 
     assert "Corrupt or invalid ZIP archive" in str(exc_info.value)
+
+
+def test_zip_with_many_ignored_entries_does_not_trigger_bomb_limit(temp_workspace: Path):
+    """
+    Verify that archives containing thousands of node_modules or .git entries
+    (common in MERN/fullstack projects) do not exceed max_file_count if the
+    actual extractable code files are within limits.
+    """
+    # 25 files in node_modules, 3 valid files, max_file_count set to 5
+    # Total entries = 28 > 5, but extractable files = 3 <= 5!
+    files = {f"node_modules/pkg_{i}/index.js": f"console.log({i})" for i in range(25)}
+    files["src/index.js"] = "console.log('App started')"
+    files["src/server.py"] = "print('Server running')"
+    files["package.json"] = '{"name": "task-manager"}'
+
+    zip_buffer = create_in_memory_zip(files)
+    dest_dir = temp_workspace / "fullstack_project"
+
+    result = safe_extract_zip(
+        zip_source=zip_buffer,
+        destination_dir=dest_dir,
+        project_id="fullstack_001",
+        max_file_count=5,  # 5 extractable files limit!
+    )
+
+    assert result.extracted_files_count == 3
+    assert result.skipped_files_count == 25
+    assert (dest_dir / "src" / "index.js").exists()
+    assert (dest_dir / "src" / "server.py").exists()
+    assert (dest_dir / "package.json").exists()
+    assert not (dest_dir / "node_modules").exists()
+

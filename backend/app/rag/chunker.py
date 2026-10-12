@@ -430,12 +430,16 @@ def chunk_repository(
 ) -> List[CodeChunk]:
     """Helper to chunk all valid code and documentation files across a repository."""
     all_chunks: List[CodeChunk] = []
+    from app.ingestion.zip_handler import is_ignored_path
     for file_path in repo_root.rglob("*"):
         if file_path.is_file():
-            parts = file_path.parts
-            if any(p.startswith(".") or p in ("__pycache__", "node_modules", "venv", ".venv") for p in parts):
+            rel_str = str(file_path.relative_to(repo_root))
+            if is_ignored_path(rel_str):
                 continue
-            if file_path.suffix.lower() in (".py", ".md", ".txt", ".json", ".yaml", ".yml"):
+            if file_path.suffix.lower() in (
+                ".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".sql",
+                ".md", ".txt", ".json", ".yaml", ".yml"
+            ):
                 chunks = chunk_file(file_path, repo_root, project_id=project_id, size_cap_chars=size_cap_chars)
                 all_chunks.extend(chunks)
     return all_chunks

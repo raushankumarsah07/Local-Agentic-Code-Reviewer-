@@ -80,9 +80,13 @@ class DependencyGraphBuilder:
         if not self.project_root.exists():
             return
 
+        from app.ingestion.zip_handler import is_ignored_path
+
         for p in self.project_root.rglob("*"):
             if p.is_file():
                 rel_path = p.relative_to(self.project_root).as_posix()
+                if is_ignored_path(rel_path):
+                    continue
                 self.known_files.add(rel_path)
                 try:
                     size = p.stat().st_size
@@ -238,7 +242,37 @@ class DependencyGraphBuilder:
                 file_size=self.file_metadata.get(rel_file, {}).get("size_bytes", 0),
             )
 
-        # 2. Add edges from imports (merging multiple imports between same source and target)
+        # 2. Add other internal source and configuration files as nodes
+        from app.ingestion.scanner import detect_language
+        for rel_file in sorted(self.known_files):
+            if rel_file in G:
+                continue
+            ext = Path(rel_file).suffix.lower()
+            if ext in (
+                ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".scss",
+                ".json", ".yaml", ".yml", ".sql", ".sh", ".md"
+            ):
+                full_path = self.project_root / rel_file
+                line_count = 0
+                try:
+                    with open(full_path, "r", encoding="utf-8", errors="replace") as f:
+                        line_count = len(f.read().splitlines())
+                except Exception:
+                    pass
+
+                lang = detect_language(full_path)
+                G.add_node(
+                    rel_file,
+                    id=rel_file,
+                    label=Path(rel_file).name,
+                    path=rel_file,
+                    is_external=False,
+                    language=lang,
+                    line_count=line_count,
+                    file_size=self.file_metadata.get(rel_file, {}).get("size_bytes", 0),
+                )
+
+        # 3. Add edges from imports (merging multiple imports between same source and target)
         # Key: (source, target) -> { "is_external": bool, "symbols": Set[str], "line": int }
         edge_map: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
@@ -277,6 +311,56 @@ class DependencyGraphBuilder:
                         "line": imp.line_number,
                     }
                 edge_map[key]["symbols"].add(imp.imported_name)
+
+        # 4. Resolve JavaScript & TypeScript dependencies (ES6 imports & CommonJS require)
+        import re
+        js_ts_files = [f for f in self.known_files if Path(f).suffix.lower() in (".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs")]
+        for js_file in js_ts_files:
+            full_path = self.project_root / js_file
+            try:
+                content = full_path.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+
+            import_matches = re.findall(r'''(?:import\s+.*?from\s+['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\))''', content)
+            for m1, m2 in import_matches:
+                imported_path = m1 or m2
+                if not imported_path:
+                    continue
+
+                if imported_path.startswith("."):
+                    target_candidate = None
+                    base_dir = Path(js_file).parent
+                    resolved_cand = (base_dir / imported_path).as_posix()
+                    for ext_try in ["", ".js", ".jsx", ".ts", ".tsx", "/index.js", "/index.ts", "/index.jsx"]:
+                        cand = os.path.normpath(resolved_cand + ext_try).replace("\\", "/")
+                        if cand in self.known_files:
+                            target_candidate = cand
+                            break
+
+                    if target_candidate and target_candidate != js_file:
+                        key = (js_file, target_candidate)
+                        if key not in edge_map:
+                            edge_map[key] = {"is_external": False, "symbols": set(), "line": 1}
+                        edge_map[key]["symbols"].add(Path(imported_path).stem)
+                else:
+                    pkg_name = imported_path.split("/")[0] if not imported_path.startswith("@") else "/".join(imported_path.split("/")[:2])
+                    if include_external:
+                        if pkg_name not in G:
+                            G.add_node(
+                                pkg_name,
+                                id=pkg_name,
+                                label=f"{pkg_name} (external)",
+                                path=None,
+                                is_external=True,
+                                language="External",
+                                line_count=0,
+                                file_size=0,
+                            )
+                        key = (js_file, pkg_name)
+                        if key not in edge_map:
+                            edge_map[key] = {"is_external": True, "symbols": set(), "line": 1}
+                        edge_map[key]["symbols"].add(pkg_name)
 
         # 3. Add consolidated edges to NetworkX DiGraph
         for (src, dst), data in edge_map.items():

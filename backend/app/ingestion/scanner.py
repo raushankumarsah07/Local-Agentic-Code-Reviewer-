@@ -183,7 +183,7 @@ def scan_repository(repo_path: Path, project_id: str) -> ScanSummary:
         # 1. Prune ignored directories in-place to avoid descending into them
         dirs[:] = [
             d for d in dirs
-            if d not in IGNORED_DIR_NAMES and not d.endswith(".egg-info")
+            if d.lower() not in IGNORED_DIR_NAMES and not d.lower().endswith(".egg-info")
         ]
 
         for filename in files:
