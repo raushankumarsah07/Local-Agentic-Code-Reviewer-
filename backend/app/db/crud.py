@@ -79,13 +79,11 @@ def save_project_files(
     files_data: List[dict],
 ) -> List[ProjectFile]:
     """
-    Bulk insert file records for a project.
-    
-    Args:
-        db: Active SQLAlchemy Session
-        project_id: Target project identifier
-        files_data: List of dicts with keys: path, language, size_bytes, line_count
+    Bulk insert file records for a project. Purges previous records to ensure idempotency.
     """
+    db.query(ProjectFile).filter(ProjectFile.project_id == project_id).delete()
+    db.commit()
+
     file_records = [
         ProjectFile(
             project_id=project_id,
@@ -147,7 +145,11 @@ def save_code_entities(
 ) -> List[CodeEntity]:
     """
     Bulk insert extracted AST code entities (classes, functions, methods, imports).
+    Purges previous records to ensure idempotency.
     """
+    db.query(CodeEntity).filter(CodeEntity.project_id == project_id).delete()
+    db.commit()
+
     entity_records = [
         CodeEntity(
             project_id=project_id,
@@ -202,8 +204,11 @@ def save_graph_edges(
     edges_data: List[dict],
 ) -> List[GraphEdge]:
     """
-    Bulk persist dependency edges for a project.
+    Bulk persist dependency edges for a project. Purges previous records to ensure idempotency.
     """
+    db.query(GraphEdge).filter(GraphEdge.project_id == project_id).delete()
+    db.commit()
+
     import json
     edge_records = [
         GraphEdge(
