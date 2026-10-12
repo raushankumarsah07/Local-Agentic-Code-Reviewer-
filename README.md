@@ -301,7 +301,7 @@ python scripts/generate_eval_templates.py
 
 ---
 
-## Project Structure
+## Project Structure //
 
 ```
 ├── backend/
