@@ -344,6 +344,3 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 
 
 
-<!-- later i will add more features  -->
-
-<!-- i want to add some features which is more powerful that can best i think  -->
